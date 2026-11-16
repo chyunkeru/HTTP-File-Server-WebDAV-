@@ -1,0 +1,247 @@
+<resources>
+    <string name="app_name">Http File Server</string>
+    <string name="settings_password_label">Protected Password</string>
+    <string name="settings_system_privileges_title">System Privileges &amp; Compatibility</string>
+    <string name="settings_root_features_title">Root Advanced Features</string>
+    <string name="settings_root_features_description">Unlock experimental low-level features (virtual jail containment, directory permissions ownership, and system-wide search path bypass).</string>
+    <string name="settings_language_label">繁体中文</string>
+    <string name="cd_hk_flag">HK Flag</string>
+
+    <!-- Navigation -->
+    <string name="nav_server">Server</string>
+    <string name="nav_drives">Drives</string>
+    <string name="nav_logs">Logs</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_core_engine">WebDAV++ Core Engine</string>
+    <string name="dashboard_perm_required">Storage Permission Required</string>
+    <string name="dashboard_perm_desc">To list and share files from your device\'s internal storage, you must authorize \'All Files Access\' permission.</string>
+    <string name="dashboard_btn_grant">Grant Permission</string>
+    <string name="dashboard_engine_status">ENGINE STATUS</string>
+    <string name="dashboard_status_active">ACTIVE</string>
+    <string name="dashboard_status_stopped">STOPPED</string>
+    <string name="dashboard_conn_address">SEAMLESS CONNECTION ADDRESS</string>
+    <string name="dashboard_no_listening">No Listening Sockets Active</string>
+    <string name="dashboard_webdav_compat">WebDAV: COMPAT</string>
+    <string name="dashboard_webdav_standard">WebDAV: STANDARD</string>
+    <string name="dashboard_lan_ip_ready">LAN IP READY</string>
+    <string name="dashboard_local_interface">LOCAL INTERFACE</string>
+    <string name="dashboard_qr_title">CLIENT SYNCHRONIZATION QR</string>
+    <string name="dashboard_qr_desc">Point host or client scanner at the square to connect</string>
+    <string name="dashboard_folders_title">FOLDER PATH DISPLAYS</string>
+    <string name="dashboard_folders_subtitle">ACTIVE ACCESSED CHANNELS</string>
+    <string name="dashboard_folders_active_badge">%1$d ACTIVE</string>
+    <string name="dashboard_no_folders">No Shared Root Drives</string>
+    <string name="dashboard_add_mount_desc">Add mount mappings under \'Drives\' tab</string>
+    <string name="dashboard_read_write">READ-WRITE</string>
+    <string name="dashboard_read_only">READ-ONLY</string>
+    <string name="dashboard_access_details">ACCESS SYSTEM DETAILS</string>
+    <string name="dashboard_host_ip">Host Connection IP</string>
+    <string name="dashboard_primary_port">Primary Port</string>
+    <string name="dashboard_active_shares_path">Active Shares Path</string>
+    <string name="dashboard_mounts_count">%1$d Mounts</string>
+    <string name="dashboard_webdav_compatibility">WebDAV Compatibility</string>
+    <string name="dashboard_level_active">Level 1, 2 Active</string>
+    <string name="dashboard_disabled">Disabled</string>
+    <string name="dashboard_help_title">How to mount network drive?</string>
+    <string name="dashboard_help_desc">1. Connect your PC to the same Wi-Fi network.\n2. On macOS Finder: Press Cmd+K, type %1$s and connect.\n3. On Windows 11 Explorer: Select \'Map Network Drive\', enter %1$s\n\n⚠️ Windows WebDAV HTTP Tweak:\nWindows requires a registry setting to mount WebDAV over unencrypted HTTP (Basic Authentication).\nModify registry value \'BasicAuthLevel\' to 2 under WebClient parameters.</string>
+
+    <!-- Shares (Drives) -->
+    <string name="shares_no_drives">No Shared Drives Mapped</string>
+    <string name="shares_no_drives_desc">Provide at least one shared mount point to allow connection clients to access files.</string>
+    <string name="shares_configured_title">Configured Server Drives</string>
+    <string name="shares_read_write">Read-Write</string>
+    <string name="shares_read_only">Read-Only</string>
+    <string name="shares_default_sandbox">Default Sandbox</string>
+    <string name="shares_btn_add">Map Shared Folder</string>
+
+    <!-- Logs -->
+    <string name="logs_empty">Empty Request Logs</string>
+    <string name="logs_empty_desc">Incoming HTTP or WebDAV network packets and transfers will show up details logs in real-time.</string>
+    <string name="logs_history_title">Session Activity History</string>
+    <string name="logs_requests_count">%1$d requests</string>
+    <string name="logs_details_prefix">Details: %1$s</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Server Settings</string>
+    <string name="settings_theme_title">App Theme &amp; Quick Styles</string>
+    <string name="settings_theme_system">System Default</string>
+    <string name="settings_theme_light">Light Mode</string>
+    <string name="settings_theme_dark">Dark Mode</string>
+    <string name="settings_network_title">Network Bind Parameters</string>
+    <string name="settings_port_label">Server Port</string>
+    <string name="settings_port_placeholder">e.g. 8080</string>
+    <string name="settings_webdav_title">Enable WebDAV Extension</string>
+    <string name="settings_webdav_desc">Expose folders as WebDAV collections for network drive clients</string>
+    <string name="settings_notifications_title">Status Notifications</string>
+    <string name="settings_notifications_enabled_desc">Server elevated to Foreground Service. Android will protect it when you switch apps.</string>
+    <string name="settings_notifications_disabled_desc">⚠️ Warning: Disabling notifications turns off Foreground Service. Android will immediately kill the app when in background.</string>
+    <string name="settings_battery_title">Battery Optimization</string>
+    <string name="settings_battery_unrestricted_desc">Battery usage set to Unrestricted. The background file server will operate unfrozen.</string>
+    <string name="settings_battery_optimized_desc">⚠️ Optimized: Android may kill the file server background daemon. Switch to Unrestricted.</string>
+    <string name="settings_battery_unrestricted">Unrestricted</string>
+    <string name="settings_battery_configure">Configure</string>
+    <string name="settings_timeout_title">Server Idle Timeout</string>
+    <string name="settings_timeout_desc">Auto-shutdown server when inactive. Put 0 to disable timeout completely.</string>
+    <string name="settings_timeout_label">Timeout Duration (Minutes)</string>
+    <string name="settings_timeout_placeholder">e.g. 120</string>
+    <string name="settings_auth_title">Access Protection (Authentication)</string>
+    <string name="settings_anonymous_title">Anonymous Guest Access</string>
+    <string name="settings_anonymous_desc">Allow connections without prompt username / password credentials</string>
+    <string name="settings_username_label">Protected Username</string>
+    <string name="settings_btn_shut_down">Shut Down Service</string>
+    <string name="settings_btn_deploy">Deploy Server</string>
+
+    <!-- Map Drive Dialog -->
+    <string name="dialog_map_title">Map Shared Folder</string>
+    <string name="dialog_map_desc">Assign a display alias and map a valid absolute physical directory path on the device. Click the folder icon on the right to browse.</string>
+    <string name="dialog_folder_name_label">Share Folder Name</string>
+    <string name="dialog_folder_name_placeholder">e.g. MyDownloads</string>
+    <string name="dialog_folder_path_label">Absolute Storage Path</string>
+    <string name="dialog_folder_path_placeholder">e.g. /storage/emulated/0/Download</string>
+    <string name="dialog_writable_title">Allow Writable access</string>
+    <string name="dialog_writable_desc">Permit file uploads, folder creation, and deletions</string>
+    <string name="dialog_btn_mount">Mount Drive</string>
+    <string name="dialog_btn_cancel">Cancel</string>
+
+    <!-- Folder Picker Dialog -->
+    <string name="picker_title">Select Storage Folder</string>
+    <string name="picker_no_folders">No accessible folders found.\nEnsure storage permission is granted.</string>
+    <string name="picker_up_level">.. (Up a level)</string>
+    <string name="picker_empty_folder">[ Empty Folder ]</string>
+    <string name="picker_btn_select">Select Folder</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_title">Initial Configuration</string>
+    <string name="onboarding_subtitle">Configure critical features to enable WebDAV/HTTP file sharing that runs robustly in the background.</string>
+    <string name="onboarding_btn_continue">Continue to Dashboard</string>
+    <string name="onboarding_change_later_desc">You can change these options later in Settings</string>
+    <string name="onboarding_step1_title">File Storage Access</string>
+    <string name="onboarding_step1_desc">Required to share files. Grants read/write permissions for selected device folders.</string>
+    <string name="onboarding_step1_btn">Grant File Permission</string>
+    <string name="onboarding_step2_title">System Notifications</string>
+    <string name="onboarding_step2_desc">Required for Foreground Service. Prevents Android from shutting down the server background operations.</string>
+    <string name="onboarding_step2_btn">Enable Notifications</string>
+    <string name="onboarding_step3_title">Disable Battery Optimization</string>
+    <string name="onboarding_step3_desc">Highly recommended. Set battery optimization setting to \'Unrestricted\' so the server can run without being frozen.</string>
+    <string name="onboarding_step3_btn">Configure Battery Mode</string>
+    <string name="onboarding_status_enabled">Enabled</string>
+    <string name="onboarding_status_pending">Action Required</string>
+
+    <!-- Toast Messages -->
+    <string name="toast_back_exit">Press back again to exit</string>
+    <string name="toast_perm_notification">Permissions required for background notification status</string>
+    <string name="toast_perm_storage">Storage permission is required to access files</string>
+    <string name="toast_open_settings_error">Could not open system settings</string>
+    <string name="toast_server_stopped">Server shut down</string>
+    <string name="toast_server_starting">Deploying server background process</string>
+    <string name="toast_copied">URL address copied to clipboard</string>
+    <string name="toast_battery_unsupported">Battery optimization not supported on this version</string>
+    <string name="toast_battery_unsupported_long">Battery optimization not available on this Android version</string>
+    <string name="toast_notifications_auto">Notifications are auto-enabled on this Android build</string>
+    <string name="toast_root_auto_configured">Root detected: Storage, notifications, and battery optimization enabled automatically!</string>
+    <string name="onboarding_root_detected_title">Root Access Granted</string>
+    <string name="onboarding_root_detected_desc">Storage permissions, background notifications, and battery optimization have been automatically configured via root.</string>
+
+    <!-- Additional Localized Keys -->
+    <string name="shares_empty_title">No Shared Drives Mapped</string>
+    <string name="shares_empty_desc">Provide at least one shared mount point to allow connection clients to access files.</string>
+    <string name="shares_list_title">Configured Server Drives</string>
+    <string name="shares_badge_rw">Read-Write</string>
+    <string name="shares_badge_ro">Read-Only</string>
+    <string name="shares_badge_default">Default Sandbox</string>
+    <string name="shares_btn_delete_desc">Remove Share Point</string>
+    <string name="shares_btn_add_desc">Map Shared Folder</string>
+    <string name="logs_empty_title">Empty Request Logs</string>
+    <string name="logs_title">Session Activity History</string>
+    <string name="logs_count_badge">%1$d requests</string>
+    <string name="logs_btn_clear_desc">Clear Session Logs</string>
+    <string name="toast_notif_perm_required">Permissions required for background notification status</string>
+    <string name="settings_webdav_label">Enable WebDAV Extension</string>
+    <string name="settings_notif_label">Status Notifications</string>
+    <string name="settings_notif_active_desc">Server elevated to Foreground Service. Android will protect it when you switch apps.</string>
+    <string name="settings_notif_disabled_desc">⚠️ Warning: Disabling notifications turns off Foreground Service. Android will immediately kill the app when in background.</string>
+    <string name="settings_battery_label">Battery Optimization</string>
+    <string name="toast_battery_settings_error">Could not open battery settings</string>
+    <string name="toast_battery_not_supported">Battery optimization not available on this Android version</string>
+    <string name="settings_btn_battery_unrestricted">Unrestricted</string>
+    <string name="settings_btn_battery_configure">Configure</string>
+    <string name="settings_anonymous_label">Anonymous Guest Access</string>
+    <string name="add_folder_dialog_title">Map Shared Folder</string>
+    <string name="add_folder_dialog_desc">Assign a display alias and map a valid absolute physical directory path on the device. Click the folder icon on the right to browse.</string>
+    <string name="add_folder_dialog_name_label">Share Folder Name</string>
+    <string name="add_folder_dialog_name_placeholder">e.g. MyDownloads</string>
+    <string name="add_folder_dialog_path_label">Absolute Storage Path</string>
+    <string name="add_folder_dialog_path_placeholder">e.g. /storage/emulated/0/Download</string>
+    <string name="add_folder_dialog_browse_desc">Browse folders</string>
+    <string name="add_folder_dialog_write_label">Allow Writable access</string>
+    <string name="add_folder_dialog_write_desc">Permit file uploads, folder creation, and deletions</string>
+    <string name="add_folder_dialog_btn_confirm">Mount Drive</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="picker_empty">No accessible folders found.\nEnsure storage permission is granted.</string>
+    <string name="picker_btn_up_desc">Up</string>
+    <string name="picker_cd_directory">Directory</string>
+    <string name="qr_offline">Server Offline</string>
+    <string name="qr_offline_sub">Start service to scan</string>
+    <string name="qr_error">QR Error</string>
+    <string name="onboarding_footnote">You can change these options later in Settings</string>
+    <string name="onboarding_cd_logo">Http File Server Logo</string>
+    <string name="onboarding_desc">Configure critical features to enable WebDAV/HTTP file sharing that runs robustly in the background.</string>
+    <string name="onboarding_step_storage_title">File Storage Access</string>
+    <string name="onboarding_step_storage_desc">Required to share files. Grants read/write permissions for selected device folders.</string>
+    <string name="onboarding_step_storage_btn">Grant File Permission</string>
+    <string name="toast_system_settings_error">Could not open system settings</string>
+    <string name="onboarding_step_notifications_title">System Notifications</string>
+    <string name="onboarding_step_notifications_desc">Required for Foreground Service. Prevents Android from shutting down the server background operations.</string>
+    <string name="onboarding_step_notifications_btn">Enable Notifications</string>
+    <string name="toast_notifications_auto_enabled">Notifications are auto-enabled on this Android build</string>
+    <string name="onboarding_step_battery_title">Disable Battery Optimization</string>
+    <string name="onboarding_step_battery_desc">Highly recommended. Set battery optimization setting to \'Unrestricted\' so the server can run without being frozen.</string>
+    <string name="onboarding_step_battery_btn">Configure Battery Mode</string>
+    <string name="onboarding_step_cd_configured">Configured Successfully</string>
+    <string name="onboarding_step_enabled">Enabled</string>
+    <string name="onboarding_step_cd_pending">Pending Setting Configuration</string>
+    <string name="onboarding_step_pending">Action Required</string>
+
+    <!-- Setup Wizard Strings -->
+    <string name="wizard_step_counter">Step %1$d of %2$d</string>
+    <string name="wizard_btn_next">Next</string>
+    <string name="wizard_btn_previous">Back</string>
+    <string name="wizard_btn_skip">Skip Wizard</string>
+    <string name="wizard_btn_finish">Finish &amp; Launch</string>
+    <string name="wizard_welcome_badge">SETUP WIZARD</string>
+    <string name="wizard_welcome_heading">Welcome to HTTP File Server</string>
+    <string name="wizard_title_sub">Setup Wizard</string>
+    <string name="wizard_welcome_body">This wizard guides you through configuring your device as a high-speed local HTTP &amp; WebDAV server in just a few taps.</string>
+    <string name="wizard_welcome_feature1_title">Zero Cloud / Complete Privacy</string>
+    <string name="wizard_welcome_feature1_desc">Direct device-to-device network transfers with no external cloud relays.</string>
+    <string name="wizard_welcome_feature2_title">Background Persistence</string>
+    <string name="wizard_welcome_feature2_desc">Runs reliably in the background while multitasking or locking your screen.</string>
+    <string name="wizard_welcome_feature3_title">Universal Compatibility</string>
+    <string name="wizard_welcome_feature3_desc">Connect seamlessly from Windows Explorer, macOS Finder, Linux, iOS, and Web.</string>
+    <string name="wizard_storage_title">Storage Access Permission</string>
+    <string name="wizard_storage_body">To share your documents, photos, and music across your Wi-Fi network, Android requires permission to read your internal storage.</string>
+    <string name="wizard_storage_status_granted">Storage Access Granted</string>
+    <string name="wizard_storage_status_needed">Permission Required</string>
+    <string name="wizard_storage_tip">You can tap Next to proceed even if ungranted; you will still be able to map custom sandbox folders.</string>
+    <string name="wizard_storage_tip_granted">Storage access is enabled. Tap Next to continue.</string>
+    <string name="wizard_notif_title">Background Notifications</string>
+    <string name="wizard_notif_body">A persistent foreground notification ensures Android won\'t freeze or kill the server when you switch apps or turn off the screen.</string>
+    <string name="wizard_notif_status_enabled">Foreground Notifications Active</string>
+    <string name="wizard_notif_status_needed">Notification Permission Needed</string>
+    <string name="wizard_battery_title">Battery Optimization</string>
+    <string name="wizard_battery_body">Setting battery usage to \'Unrestricted\' prevents Android Doze mode from throttling high-speed file transfers during long downloads.</string>
+    <string name="wizard_battery_status_unrestricted">Battery Optimization: Unrestricted</string>
+    <string name="wizard_battery_status_optimized">Battery Optimization: Active (Restricted)</string>
+    <string name="wizard_server_title">Server &amp; Security Settings</string>
+    <string name="wizard_server_body">Choose your primary port and set whether connecting devices need credentials.</string>
+    <string name="wizard_server_port">Listening Port (default: 8080)</string>
+    <string name="wizard_server_webdav">Enable WebDAV Protocol Extensions</string>
+    <string name="wizard_server_anonymous">Allow Anonymous Guest Access</string>
+    <string name="wizard_complete_title">Configuration Complete!</string>
+    <string name="wizard_complete_body">Your HTTP and WebDAV server is configured and ready to share files securely across your local network.</string>
+    <string name="wizard_start_now">Start server immediately upon completion</string>
+    <string name="settings_rerun_wizard">Rerun Setup Wizard</string>
+    <string name="settings_rerun_wizard_desc">Launch the initial step-by-step onboarding walkthrough again.</string>
+</resources>

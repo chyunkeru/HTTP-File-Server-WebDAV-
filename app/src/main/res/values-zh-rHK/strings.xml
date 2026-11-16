@@ -1,0 +1,247 @@
+<resources>
+    <string name="app_name">Http 檔案伺服器</string>
+    <string name="settings_password_label">受保護密碼</string>
+    <string name="settings_system_privileges_title">系統權限與相容性</string>
+    <string name="settings_root_features_title">Root 進階功能</string>
+    <string name="settings_root_features_description">解鎖實驗性低階功能（虛擬越獄容器、目錄權限所有權，以及系統範圍搜尋路徑繞過）。</string>
+    <string name="settings_language_label">繁體中文</string>
+    <string name="cd_hk_flag">香港旗幟</string>
+
+    <!-- Navigation -->
+    <string name="nav_server">伺服器</string>
+    <string name="nav_drives">硬碟</string>
+    <string name="nav_logs">日誌</string>
+    <string name="nav_settings">設定</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_core_engine">WebDAV++ 核心引擎</string>
+    <string name="dashboard_perm_required">需要存儲權限</string>
+    <string name="dashboard_perm_desc">若要列出並分享您裝置內部存儲中的檔案，您必須授權「所有檔案存取權限」。</string>
+    <string name="dashboard_btn_grant">授予權限</string>
+    <string name="dashboard_engine_status">引擎狀態</string>
+    <string name="dashboard_status_active">作用中</string>
+    <string name="dashboard_status_stopped">已停止</string>
+    <string name="dashboard_conn_address">無縫連接位址</string>
+    <string name="dashboard_no_listening">無作用中的監聽通訊端</string>
+    <string name="dashboard_webdav_compat">WebDAV：兼容</string>
+    <string name="dashboard_webdav_standard">WebDAV：標準</string>
+    <string name="dashboard_lan_ip_ready">區域網絡 IP 已就緒</string>
+    <string name="dashboard_local_interface">本機介面</string>
+    <string name="dashboard_qr_title">用戶端同步 QR 碼</string>
+    <string name="dashboard_qr_desc">將主機或用戶端掃描器對準方塊以進行連接</string>
+    <string name="dashboard_folders_title">資料夾路徑顯示</string>
+    <string name="dashboard_folders_subtitle">作用中的存取通道</string>
+    <string name="dashboard_folders_active_badge">%1$d 作用中</string>
+    <string name="dashboard_no_folders">無共享根硬碟</string>
+    <string name="dashboard_add_mount_desc">在「硬碟」分頁下新增掛載對應</string>
+    <string name="dashboard_read_write">讀寫</string>
+    <string name="dashboard_read_only">唯讀</string>
+    <string name="dashboard_access_details">存取系統詳細資訊</string>
+    <string name="dashboard_host_ip">主機連接 IP</string>
+    <string name="dashboard_primary_port">主要連接埠</string>
+    <string name="dashboard_active_shares_path">作用中的共享路徑</string>
+    <string name="dashboard_mounts_count">%1$d 個掛載</string>
+    <string name="dashboard_webdav_compatibility">WebDAV 兼容性</string>
+    <string name="dashboard_level_active">層級 1, 2 作用中</string>
+    <string name="dashboard_disabled">已停用</string>
+    <string name="dashboard_help_title">如何掛載網絡硬碟？</string>
+    <string name="dashboard_help_desc">1. 將您的電腦連接到相同的 Wi-Fi 網絡。\n2. 在 macOS Finder：按 Cmd+K，輸入 %1$s 並連接。\n3. 在 Windows 11 檔案總管：選擇「連線網絡磁碟機」，輸入 %1$s\n\n⚠️ Windows WebDAV HTTP 微調：\nWindows 需要修改登錄檔設定，才能透過未加密的 HTTP (基本身分驗證) 掛載 WebDAV。\n請在 WebClient 參數下將登錄值 \'BasicAuthLevel\' 修改為 2。</string>
+
+    <!-- Shares (Drives) -->
+    <string name="shares_no_drives">未對應任何共享硬碟</string>
+    <string name="shares_no_drives_desc">請提供至少一個共享掛載點，以便連接的用戶端可以存取檔案。</string>
+    <string name="shares_configured_title">已設定的伺服器硬碟</string>
+    <string name="shares_read_write">讀寫</string>
+    <string name="shares_read_only">唯讀</string>
+    <string name="shares_default_sandbox">預設沙盒</string>
+    <string name="shares_btn_add">對應共享資料夾</string>
+
+    <!-- Logs -->
+    <string name="logs_empty">無請求日誌</string>
+    <string name="logs_empty_desc">傳入的 HTTP 或 WebDAV 網絡封包及傳輸詳細日誌將即時顯示於此。</string>
+    <string name="logs_history_title">工作階段活動歷史記錄</string>
+    <string name="logs_requests_count">%1$d 個請求</string>
+    <string name="logs_details_prefix">詳細資料：%1$s</string>
+
+    <!-- Settings -->
+    <string name="settings_title">伺服器設定</string>
+    <string name="settings_theme_title">應用程式主題與快速樣式</string>
+    <string name="settings_theme_system">系統預設</string>
+    <string name="settings_theme_light">淺色模式</string>
+    <string name="settings_theme_dark">深色模式</string>
+    <string name="settings_network_title">網絡繫結參數</string>
+    <string name="settings_port_label">伺服器連接埠</string>
+    <string name="settings_port_placeholder">例如 8080</string>
+    <string name="settings_webdav_title">啟用 WebDAV 擴充功能</string>
+    <string name="settings_webdav_desc">將資料夾公開為網絡磁碟機用戶端的 WebDAV 集合</string>
+    <string name="settings_notifications_title">狀態通知</string>
+    <string name="settings_notifications_enabled_desc">伺服器已提升為前景服務。當您切換應用程式時，Android 將保護它不被關閉。</string>
+    <string name="settings_notifications_disabled_desc">⚠️ 警告：停用通知會關閉前景服務。當應用程式處於背景時，Android 將立即結束伺服器進程。</string>
+    <string name="settings_battery_title">電池優化</string>
+    <string name="settings_battery_unrestricted_desc">電池使用量已設定為「不受限制」。背景檔案伺服器將在不被凍結的情況下運行。</string>
+    <string name="settings_battery_optimized_desc">⚠️ 已優化：Android 可能會結束檔案伺服器的背景守護程序。請切換至「不受限制」。</string>
+    <string name="settings_battery_unrestricted">不受限制</string>
+    <string name="settings_battery_configure">設定</string>
+    <string name="settings_timeout_title">伺服器閒置逾時</string>
+    <string name="settings_timeout_desc">在閒置時自動關閉伺服器。輸入 0 可完全停用逾時。</string>
+    <string name="settings_timeout_label">逾時時間 (分鐘)</string>
+    <string name="settings_timeout_placeholder">例如 120</string>
+    <string name="settings_auth_title">存取保護 (身分驗證)</string>
+    <string name="settings_anonymous_title">匿名訪客存取</string>
+    <string name="settings_anonymous_desc">允許在不提示輸入使用者名稱 / 密碼認證的情況下進行連接</string>
+    <string name="settings_username_label">受保護的使用者名稱</string>
+    <string name="settings_btn_shut_down">關閉服務</string>
+    <string name="settings_btn_deploy">部署伺服器</string>
+
+    <!-- Map Drive Dialog -->
+    <string name="dialog_map_title">對應共享資料夾</string>
+    <string name="dialog_map_desc">指派一個顯示別名，並在裝置上對應一個有效的絕對實體目錄路徑。按一下右側的資料夾圖示進行瀏覽。</string>
+    <string name="dialog_folder_name_label">共享資料夾名稱</string>
+    <string name="dialog_folder_name_placeholder">例如 MyDownloads</string>
+    <string name="dialog_folder_path_label">絕對存儲路徑</string>
+    <string name="dialog_folder_path_placeholder">例如 /storage/emulated/0/Download</string>
+    <string name="dialog_writable_title">允許寫入存取權限</string>
+    <string name="dialog_writable_desc">允許上傳檔案、建立資料夾及刪除</string>
+    <string name="dialog_btn_mount">掛載硬碟</string>
+    <string name="dialog_btn_cancel">取消</string>
+
+    <!-- Folder Picker Dialog -->
+    <string name="picker_title">選擇儲存資料夾</string>
+    <string name="picker_no_folders">找不到可存取的資料夾。\n請確保已授予存儲權限。</string>
+    <string name="picker_up_level">.. (返回上一層)</string>
+    <string name="picker_empty_folder">[ 空資料夾 ]</string>
+    <string name="picker_btn_select">選擇資料夾</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_title">初始設定</string>
+    <string name="onboarding_subtitle">Configure critical features to enable WebDAV/HTTP file sharing that runs robustly in the background.</string>
+    <string name="onboarding_btn_continue">繼續前往儀表板</string>
+    <string name="onboarding_change_later_desc">您稍後可以在「設定」中變更這些選項</string>
+    <string name="onboarding_step1_title">檔案存儲存取權限</string>
+    <string name="onboarding_step1_desc">共享檔案所需。授予所選裝置資料夾的讀取/寫入權限。</string>
+    <string name="onboarding_step1_btn">授予檔案權限</string>
+    <string name="onboarding_step2_title">系統通知</string>
+    <string name="onboarding_step2_desc">前景服務所需。防止 Android 停止背景伺服器的運行。</string>
+    <string name="onboarding_step2_btn">啟用通知</string>
+    <string name="onboarding_step3_title">停用電池優化</string>
+    <string name="onboarding_step3_desc">強烈建議。將電池優化設定為「不受限制」，使伺服器運作時不被凍結。</string>
+    <string name="onboarding_step3_btn">設定電池模式</string>
+    <string name="onboarding_status_enabled">已啟用</string>
+    <string name="onboarding_status_pending">需要執行操作</string>
+
+    <!-- Toast Messages -->
+    <string name="toast_back_exit">再按一次返回鍵以退出</string>
+    <string name="toast_perm_notification">需要權限以顯示背景通知狀態</string>
+    <string name="toast_perm_storage">需要存儲權限才能存取檔案</string>
+    <string name="toast_open_settings_error">無法開啟系統設定</string>
+    <string name="toast_server_stopped">伺服器已關閉</string>
+    <string name="toast_server_starting">正在部署伺服器背景進程</string>
+    <string name="toast_copied">URL 位址已複製到剪貼簿</string>
+    <string name="toast_battery_unsupported">此版本不支援電池優化設定</string>
+    <string name="toast_battery_unsupported_long">此 Android 版本不提供電池優化</string>
+    <string name="toast_notifications_auto">通知在此 Android 版本上已自動啟用</string>
+    <string name="toast_root_auto_configured">已偵測到 Root 權限：已自動啟用存儲、通知及電池最佳化！</string>
+    <string name="onboarding_root_detected_title">已取得 Root 權限</string>
+    <string name="onboarding_root_detected_desc">存儲存取權限、背景通知及電池最佳化已透過 Root 自動設定完成。</string>
+
+    <!-- Additional Localized Keys -->
+    <string name="shares_empty_title">未對應任何共享硬碟</string>
+    <string name="shares_empty_desc">請提供至少一個共享掛載點，以便連接的用戶端可以存取檔案。</string>
+    <string name="shares_list_title">已設定的伺服器硬碟</string>
+    <string name="shares_badge_rw">讀寫</string>
+    <string name="shares_badge_ro">唯讀</string>
+    <string name="shares_badge_default">預設沙盒</string>
+    <string name="shares_btn_delete_desc">移除共享點</string>
+    <string name="shares_btn_add_desc">對應共享資料夾</string>
+    <string name="logs_empty_title">無請求日誌</string>
+    <string name="logs_title">工作階段活動歷史記錄</string>
+    <string name="logs_count_badge">%1$d 個請求</string>
+    <string name="logs_btn_clear_desc">清除工作階段日誌</string>
+    <string name="toast_notif_perm_required">需要權限以顯示背景通知狀態</string>
+    <string name="settings_webdav_label">啟用 WebDAV 擴充功能</string>
+    <string name="settings_notif_label">狀態通知</string>
+    <string name="settings_notif_active_desc">伺服器已提升為前景服務。當您切換應用程式時，Android 將保護它不被關閉。</string>
+    <string name="settings_notif_disabled_desc">⚠️ 警告：停用通知會關閉前景服務。當應用程式處於背景時，Android 將立即結束伺服器進程。</string>
+    <string name="settings_battery_label">電池優化</string>
+    <string name="toast_battery_settings_error">無法開啟電池設定</string>
+    <string name="toast_battery_not_supported">此 Android 版本不提供電池優化</string>
+    <string name="settings_btn_battery_unrestricted">不受限制</string>
+    <string name="settings_btn_battery_configure">設定</string>
+    <string name="settings_anonymous_label">匿名訪客存取</string>
+    <string name="add_folder_dialog_title">對應共享資料夾</string>
+    <string name="add_folder_dialog_desc">指派一個顯示別名，並在裝置上對應一個有效的絕對實體目錄路徑。按一下右側的資料夾圖示進行瀏覽。</string>
+    <string name="add_folder_dialog_name_label">共享資料夾名稱</string>
+    <string name="add_folder_dialog_name_placeholder">例如 MyDownloads</string>
+    <string name="add_folder_dialog_path_label">絕對存儲路徑</string>
+    <string name="add_folder_dialog_path_placeholder">例如 /storage/emulated/0/Download</string>
+    <string name="add_folder_dialog_browse_desc">瀏覽資料夾</string>
+    <string name="add_folder_dialog_write_label">允許寫入存取權限</string>
+    <string name="add_folder_dialog_write_desc">允許上傳檔案、建立資料夾及刪除</string>
+    <string name="add_folder_dialog_btn_confirm">掛載硬碟</string>
+    <string name="btn_cancel">取消</string>
+    <string name="picker_empty">找不到可存取的資料夾。\n請確保已授予存儲權限。</string>
+    <string name="picker_btn_up_desc">向上</string>
+    <string name="picker_cd_directory">目錄</string>
+    <string name="qr_offline">伺服器離線</string>
+    <string name="qr_offline_sub">啟動服務以掃描</string>
+    <string name="qr_error">QR 碼錯誤</string>
+    <string name="onboarding_footnote">您稍後可以在「設定」中變更這些選項</string>
+    <string name="onboarding_cd_logo">Http 檔案伺服器標誌</string>
+    <string name="onboarding_desc">設定關鍵功能以啟用在背景穩定運行的 WebDAV/HTTP 檔案分享。</string>
+    <string name="onboarding_step_storage_title">檔案存儲存取權限</string>
+    <string name="onboarding_step_storage_desc">共享檔案所需。授予所選裝置資料夾的讀取/寫入權限。</string>
+    <string name="onboarding_step_storage_btn">授予檔案權限</string>
+    <string name="toast_system_settings_error">無法開啟系統設定</string>
+    <string name="onboarding_step_notifications_title">系統通知</string>
+    <string name="onboarding_step_notifications_desc">前景服務所需。防止 Android 停止背景伺服器的運行。</string>
+    <string name="onboarding_step_notifications_btn">啟用通知</string>
+    <string name="toast_notifications_auto_enabled">通知在此 Android 版本上已自動啟用</string>
+    <string name="onboarding_step_battery_title">停用電池優化</string>
+    <string name="onboarding_step_battery_desc">強烈建議。將電池優化設定為「不受限制」，使伺服器運作時不被凍結。</string>
+    <string name="onboarding_step_battery_btn">設定電池模式</string>
+    <string name="onboarding_step_cd_configured">已成功設定</string>
+    <string name="onboarding_step_enabled">已啟用</string>
+    <string name="onboarding_step_cd_pending">待處理的設定設定</string>
+    <string name="onboarding_step_pending">需要執行操作</string>
+
+    <!-- Setup Wizard Strings -->
+    <string name="wizard_step_counter">第 %1$d 步（共 %2$d 步）</string>
+    <string name="wizard_btn_next">下一步</string>
+    <string name="wizard_btn_previous">上一步</string>
+    <string name="wizard_btn_skip">略過精靈</string>
+    <string name="wizard_btn_finish">完成並啟動</string>
+    <string name="wizard_welcome_badge">設定精靈</string>
+    <string name="wizard_welcome_heading">歡迎使用 HTTP 檔案伺服器</string>
+    <string name="wizard_title_sub">設定精靈</string>
+    <string name="wizard_welcome_body">本精靈將引導您只需輕按幾次即可將手機設定為超高速本機 HTTP 及 WebDAV 檔案伺服器。</string>
+    <string name="wizard_welcome_feature1_title">零雲端 / 完全隱私</string>
+    <string name="wizard_welcome_feature1_desc">直接裝置對裝置網路傳輸，無外部雲端轉發。</string>
+    <string name="wizard_welcome_feature2_title">背景持續運作</string>
+    <string name="wizard_welcome_feature2_desc">在多工處理或鎖定螢幕時在背景穩定可靠運行。</string>
+    <string name="wizard_welcome_feature3_title">廣泛通用相容性</string>
+    <string name="wizard_welcome_feature3_desc">可自 Windows 檔案總管、macOS Finder、Linux、iOS 及網頁無縫連接。</string>
+    <string name="wizard_storage_title">檔案存儲存取權限</string>
+    <string name="wizard_storage_body">若要透過 Wi-Fi 網路分享您的文件、相片及音樂，Android 需要權限以讀取您的內部存儲。</string>
+    <string name="wizard_storage_status_granted">已授予存儲存取權限</string>
+    <string name="wizard_storage_status_needed">需要權限</string>
+    <string name="wizard_storage_tip">即使未授予權限您仍可點擊「下一步」；稍後您仍可對應自訂沙盒資料夾。</string>
+    <string name="wizard_storage_tip_granted">已啟用存儲存取權限，請點擊「下一步」繼續。</string>
+    <string name="wizard_notif_title">背景通知權限</string>
+    <string name="wizard_notif_body">持續的前景通知可確保 Android 在您切換應用程式或關閉螢幕時不會凍結或終止伺服器運行。</string>
+    <string name="wizard_notif_status_enabled">前景通知作用中</string>
+    <string name="wizard_notif_status_needed">需要通知權限</string>
+    <string name="wizard_battery_title">電池最佳化</string>
+    <string name="wizard_battery_body">將電池用量設定為「不受限制」可防止 Android 低耗電模式在長時間下載時限制高速檔案傳輸。</string>
+    <string name="wizard_battery_status_unrestricted">電池最佳化：不受限制</string>
+    <string name="wizard_battery_status_optimized">電池最佳化：作用中（受限制）</string>
+    <string name="wizard_server_title">伺服器與安全性設定</string>
+    <string name="wizard_server_body">選擇您的主要通訊埠，並設定連接裝置是否需要認證憑據。</string>
+    <string name="wizard_server_port">監聽通訊埠（預設：8080）</string>
+    <string name="wizard_server_webdav">啟用 WebDAV 協定擴充功能</string>
+    <string name="wizard_server_anonymous">允許匿名訪客存取</string>
+    <string name="wizard_complete_title">設定完成！</string>
+    <string name="wizard_complete_body">您的 HTTP 及 WebDAV 伺服器已設定完成，已準備好透過本機 Wi-Fi 安全分享檔案。</string>
+    <string name="wizard_start_now">完成後立即啟動伺服器</string>
+    <string name="settings_rerun_wizard">重新執行設定精靈</string>
+    <string name="settings_rerun_wizard_desc">再次啟動初始步驟導覽設定精靈。</string>
+</resources>
