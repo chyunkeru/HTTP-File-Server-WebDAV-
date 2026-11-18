@@ -162,6 +162,9 @@
     <string name="settings_notif_label">Status Notifications</string>
     <string name="settings_notif_active_desc">Server elevated to Foreground Service. Android will protect it when you switch apps.</string>
     <string name="settings_notif_disabled_desc">⚠️ Warning: Disabling notifications turns off Foreground Service. Android will immediately kill the app when in background.</string>
+    <string name="settings_hide_status_bar_label">Hide Status Bar Icon</string>
+    <string name="settings_hide_status_bar_active_desc">Hides the file server active icon from the top status bar while keeping background service running.</string>
+    <string name="settings_hide_status_bar_inactive_desc">Shows the file server active icon in the top status bar.</string>
     <string name="settings_battery_label">Battery Optimization</string>
     <string name="toast_battery_settings_error">Could not open battery settings</string>
     <string name="toast_battery_not_supported">Battery optimization not available on this Android version</string>

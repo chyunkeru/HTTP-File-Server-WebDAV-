@@ -12,6 +12,7 @@ import com.aistudio.server.ServerManager
 class FileServerService : Service() {
     companion object {
         const val CHANNEL_ID = "http_file_server_channel"
+        const val CHANNEL_ID_MIN = "http_file_server_channel_min"
         const val NOTIFICATION_ID = 4004
         const val ACTION_STOP_SERVER = "com.aistudio.ACTION_STOP_SERVER"
         const val ACTION_UPDATE_NOTIFICATION = "com.aistudio.ACTION_UPDATE_NOTIFICATION"
@@ -101,14 +102,17 @@ class FileServerService : Service() {
             )
 
             val url = ServerManager.serverUrl.value
-            val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            val channelToUse = if (ServerManager.isHideStatusBarIcon) CHANNEL_ID_MIN else CHANNEL_ID
+            val priorityToUse = if (ServerManager.isHideStatusBarIcon) NotificationCompat.PRIORITY_MIN else NotificationCompat.PRIORITY_LOW
+
+            val notification = NotificationCompat.Builder(this, channelToUse)
                 .setContentTitle("File Server Active")
                 .setContentText("Serving requests at: $url")
                 .setSmallIcon(com.aistudio.R.drawable.ic_stat_cloud)
                 .setContentIntent(mainPendingIntent)
                 .setOngoing(true)
                 .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop Server", stopPendingIntent)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setPriority(priorityToUse)
                 .setCategory(NotificationCompat.CATEGORY_SERVICE)
                 .build()
 
@@ -156,6 +160,9 @@ class FileServerService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            
+            // Standard channel (shows icon in status bar)
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "File Server Service",
@@ -163,8 +170,18 @@ class FileServerService : Service() {
             ).apply {
                 description = "Shows active background file server status and network URL address."
             }
-            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)
+
+            // Min channel (hides icon from status bar)
+            val channelMin = NotificationChannel(
+                CHANNEL_ID_MIN,
+                "File Server Service (Hidden Status Bar)",
+                NotificationManager.IMPORTANCE_MIN
+            ).apply {
+                description = "Shows active background file server status with status bar icon hidden."
+                setShowBadge(false)
+            }
+            manager.createNotificationChannel(channelMin)
         }
     }
 }

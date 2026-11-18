@@ -1434,6 +1434,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
     val initialUsername by viewModel.usernameState.collectAsState()
     val initialPassword by viewModel.passwordState.collectAsState()
     val initialNotification by viewModel.notificationState.collectAsState()
+    val initialHideStatusBar by viewModel.hideStatusBarState.collectAsState()
     val initialTimeout by viewModel.timeoutState.collectAsState()
     val initialRootSimulation by viewModel.rootSimulationState.collectAsState()
 
@@ -1443,11 +1444,12 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
     var usernameInput by remember { mutableStateOf(initialUsername) }
     var passwordInput by remember { mutableStateOf(initialPassword) }
     var notificationToggle by remember { mutableStateOf(initialNotification) }
+    var hideStatusBarToggle by remember { mutableStateOf(initialHideStatusBar) }
     var timeoutInput by remember { mutableStateOf(initialTimeout) }
     var rootSimulationToggle by remember { mutableStateOf(initialRootSimulation) }
     val themeMode by viewModel.themeState.collectAsState()
 
-    val triggerImmediateSave = { currentPort: String, currentWebdav: Boolean, currentAnonymous: Boolean, currentUser: String, currentPass: String, currentNotification: Boolean, currentTimeout: String, currentRootSimulation: Boolean ->
+    val triggerImmediateSave = { currentPort: String, currentWebdav: Boolean, currentAnonymous: Boolean, currentUser: String, currentPass: String, currentNotification: Boolean, currentTimeout: String, currentRootSimulation: Boolean, currentHideStatusBar: Boolean ->
         val portNum = currentPort.toIntOrNull()
         val timeoutNum = currentTimeout.toIntOrNull()
         
@@ -1462,7 +1464,8 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
             pass = currentPass,
             notificationEnabled = currentNotification,
             timeoutMinutes = validTimeout,
-            rootSimulation = currentRootSimulation
+            rootSimulation = currentRootSimulation,
+            hideStatusBar = currentHideStatusBar
         )
     }
 
@@ -1585,7 +1588,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                         value = portInput,
                         onValueChange = { 
                             portInput = it
-                            triggerImmediateSave(it, webdavToggle, anonymousToggle, usernameInput, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle)
+                            triggerImmediateSave(it, webdavToggle, anonymousToggle, usernameInput, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle, hideStatusBarToggle)
                         },
                         label = { Text(stringResource(R.string.settings_port_label)) },
                         placeholder = { Text(stringResource(R.string.settings_port_placeholder)) },
@@ -1612,7 +1615,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                             checked = webdavToggle,
                             onCheckedChange = { 
                                 webdavToggle = it
-                                triggerImmediateSave(portInput, it, anonymousToggle, usernameInput, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle)
+                                triggerImmediateSave(portInput, it, anonymousToggle, usernameInput, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle, hideStatusBarToggle)
                             },
                             modifier = Modifier.testTag("settings_webdav_switch")
                         )
@@ -1647,10 +1650,41 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                                         settingsPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                                     }
                                 }
-                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, passwordInput, isChecked, timeoutInput, rootSimulationToggle)
+                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, passwordInput, isChecked, timeoutInput, rootSimulationToggle, hideStatusBarToggle)
                             },
                             modifier = Modifier.testTag("settings_notification_switch")
                         )
+                    }
+
+                    if (notificationToggle) {
+                        Divider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1F)) {
+                                Text(text = stringResource(R.string.settings_hide_status_bar_label), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text(
+                                    text = if (hideStatusBarToggle) {
+                                        stringResource(R.string.settings_hide_status_bar_active_desc)
+                                    } else {
+                                        stringResource(R.string.settings_hide_status_bar_inactive_desc)
+                                    },
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = hideStatusBarToggle,
+                                onCheckedChange = { isChecked ->
+                                    hideStatusBarToggle = isChecked
+                                    triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle, isChecked)
+                                },
+                                modifier = Modifier.testTag("settings_hide_status_bar_switch")
+                            )
+                        }
                     }
 
                     Divider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 12.dp))
@@ -1739,7 +1773,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                             value = timeoutInput,
                             onValueChange = { 
                                 timeoutInput = it
-                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, passwordInput, notificationToggle, it, rootSimulationToggle)
+                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, passwordInput, notificationToggle, it, rootSimulationToggle, hideStatusBarToggle)
                             },
                             label = { Text(stringResource(R.string.settings_timeout_label)) },
                             placeholder = { Text(stringResource(R.string.settings_timeout_placeholder)) },
@@ -1784,7 +1818,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                             checked = anonymousToggle,
                             onCheckedChange = { 
                                 anonymousToggle = it
-                                triggerImmediateSave(portInput, webdavToggle, it, usernameInput, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle)
+                                triggerImmediateSave(portInput, webdavToggle, it, usernameInput, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle, hideStatusBarToggle)
                             },
                             modifier = Modifier.testTag("settings_anonymous_switch")
                         )
@@ -1797,7 +1831,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                             value = usernameInput,
                             onValueChange = { 
                                 usernameInput = it
-                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, it, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle)
+                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, it, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle, hideStatusBarToggle)
                             },
                             label = { Text(stringResource(R.string.settings_username_label)) },
                             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
@@ -1813,7 +1847,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                             value = passwordInput,
                             onValueChange = { 
                                 passwordInput = it
-                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, it, notificationToggle, timeoutInput, rootSimulationToggle)
+                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, it, notificationToggle, timeoutInput, rootSimulationToggle, hideStatusBarToggle)
                             },
                             label = { Text(stringResource(R.string.settings_password_label)) },
                             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
@@ -1861,7 +1895,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                                 if (it) {
                                     com.aistudio.server.RootAdvancedFeatures.forceRootCheckAsync()
                                 }
-                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, passwordInput, notificationToggle, timeoutInput, it)
+                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, passwordInput, notificationToggle, timeoutInput, it, hideStatusBarToggle)
                             },
                             modifier = Modifier.testTag("settings_root_simulation_switch")
                         )

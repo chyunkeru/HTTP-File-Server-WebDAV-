@@ -162,6 +162,9 @@
     <string name="settings_notif_label">狀態通知</string>
     <string name="settings_notif_active_desc">伺服器已提升為前景服務。當您切換應用程式時，Android 將保護它不被關閉。</string>
     <string name="settings_notif_disabled_desc">⚠️ 警告：停用通知會關閉前景服務。當應用程式處於背景時，Android 將立即結束伺服器進程。</string>
+    <string name="settings_hide_status_bar_label">隱藏狀態列圖示</string>
+    <string name="settings_hide_status_bar_active_desc">在頂部狀態列隱藏伺服器運行圖示，但保持後台服務運行。</string>
+    <string name="settings_hide_status_bar_inactive_desc">在頂部狀態列顯示伺服器運行圖示。</string>
     <string name="settings_battery_label">電池優化</string>
     <string name="toast_battery_settings_error">無法開啟電池設定</string>
     <string name="toast_battery_not_supported">此 Android 版本不提供電池優化</string>

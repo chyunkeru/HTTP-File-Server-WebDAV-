@@ -40,6 +40,7 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
     val usernameState = MutableStateFlow(ServerManager.authUsername)
     val passwordState = MutableStateFlow(ServerManager.authPassword)
     val notificationState = MutableStateFlow(ServerManager.isNotificationEnabled)
+    val hideStatusBarState = MutableStateFlow(ServerManager.isHideStatusBarIcon)
     val timeoutState = MutableStateFlow(ServerManager.idleTimeoutMinutes.toString())
     val rootSimulationState = MutableStateFlow(RootAdvancedFeatures.isRootSimulationEnabled)
     val themeState = MutableStateFlow(ServerManager.themePreference)
@@ -58,7 +59,17 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
         ServerManager.stopServer(context)
     }
 
-    fun saveSettings(port: String, webdav: Boolean, anonymous: Boolean, user: String, pass: String, notificationEnabled: Boolean, timeoutMinutes: String, rootSimulation: Boolean) {
+    fun saveSettings(
+        port: String,
+        webdav: Boolean,
+        anonymous: Boolean,
+        user: String,
+        pass: String,
+        notificationEnabled: Boolean,
+        timeoutMinutes: String,
+        rootSimulation: Boolean,
+        hideStatusBar: Boolean = ServerManager.isHideStatusBarIcon
+    ) {
         val parsedPort = port.toIntOrNull() ?: 8080
         val parsedTimeout = timeoutMinutes.toIntOrNull() ?: 120
         ServerManager.port = parsedPort
@@ -67,6 +78,7 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
         ServerManager.authUsername = user
         ServerManager.authPassword = pass
         ServerManager.isNotificationEnabled = notificationEnabled
+        ServerManager.isHideStatusBarIcon = hideStatusBar
         ServerManager.idleTimeoutMinutes = parsedTimeout
         RootAdvancedFeatures.isRootSimulationEnabled = rootSimulation
         
@@ -78,6 +90,7 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
         usernameState.value = user
         passwordState.value = pass
         notificationState.value = notificationEnabled
+        hideStatusBarState.value = hideStatusBar
         timeoutState.value = timeoutMinutes
         rootSimulationState.value = rootSimulation
 

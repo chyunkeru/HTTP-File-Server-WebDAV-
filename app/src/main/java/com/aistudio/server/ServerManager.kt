@@ -32,6 +32,7 @@ object ServerManager {
     var authUsername = "admin"
     var authPassword = "admin"
     var isNotificationEnabled = false
+    var isHideStatusBarIcon = false
     var idleTimeoutMinutes = 120
     var themePreference = "system"
 
@@ -65,6 +66,7 @@ object ServerManager {
             prefs.edit().putString("auth_password", "admin").apply()
         }
         isNotificationEnabled = prefs.getBoolean("is_notification_enabled", false)
+        isHideStatusBarIcon = prefs.getBoolean("is_hide_status_bar_icon", false)
         idleTimeoutMinutes = prefs.getInt("idle_timeout_minutes", 120)
         themePreference = prefs.getString("theme_preference", "system") ?: "system"
 
@@ -151,6 +153,7 @@ object ServerManager {
             .putString("auth_username", authUsername)
             .putString("auth_password", authPassword)
             .putBoolean("is_notification_enabled", isNotificationEnabled)
+            .putBoolean("is_hide_status_bar_icon", isHideStatusBarIcon)
             .putInt("idle_timeout_minutes", idleTimeoutMinutes)
             .putBoolean("is_root_simulation_enabled", RootAdvancedFeatures.isRootSimulationEnabled)
             .putString("theme_preference", themePreference)
