@@ -176,11 +176,11 @@ class HttpServer(
                     }
 
                     val depth = headers["depth"] ?: "1"
-                    val xml = if (!targetFile.exists()) {
+                    val xml = if (!RootAdvancedFeatures.fileExists(targetFile)) {
                         sendSimpleResponse(outputStream, 404, "Not Found", "Resource not found")
                         logAndLogEntry(clientIp, requestMethod, requestUri, 404, 0L, "File not found for PROPFIND")
                         return
-                    } else if (targetFile.isDirectory) {
+                    } else if (RootAdvancedFeatures.fileIsDirectory(targetFile)) {
                         WebDavHandler.buildFolderPropfindXML(resolvedResult.folderName, targetFile, decodedUri, depth)
                     } else {
                         WebDavHandler.buildFilePropfindXML(targetFile, decodedUri)
@@ -350,17 +350,17 @@ class HttpServer(
                     }
 
                     val destFile = destResolved.physicalFile
-                    if (!targetFile.exists()) {
+                    if (!RootAdvancedFeatures.fileExists(targetFile)) {
                         sendSimpleResponse(outputStream, 404, "Not Found", "Source file doesn't exist")
                         logAndLogEntry(clientIp, requestMethod, requestUri, 404, 0L, "Source physical file missing")
                     } else {
                         val parent = destFile.parentFile
-                        if (parent != null && !parent.exists()) {
-                            parent.mkdirs()
+                        if (parent != null && !RootAdvancedFeatures.fileExists(parent)) {
+                            RootAdvancedFeatures.createDir(parent)
                         }
 
                         val success = if (requestMethod == "MOVE") {
-                            targetFile.renameTo(destFile)
+                            RootAdvancedFeatures.moveFileWithRoot(targetFile, destFile)
                         } else {
                             copyRecursive(targetFile, destFile)
                         }
