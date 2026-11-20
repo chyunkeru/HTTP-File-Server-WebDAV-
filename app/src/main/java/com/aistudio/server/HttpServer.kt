@@ -128,22 +128,28 @@ class HttpServer(
             val resolvedResult = resolvePath(decodedUri)
 
             if (resolvedResult == null) {
-                // Return Virtual Root Listing
-                if (requestMethod == "PROPFIND" && isWebdavEnabled) {
-                    val depth = headers["depth"] ?: "1"
-                    val xml = WebDavHandler.buildVirtualRootPropfindXML(getFoldersProvider(), depth)
-                    sendXmlResponse(outputStream, 207, "Multi-Status", xml)
-                    logAndLogEntry(clientIp, requestMethod, requestUri, 207, xml.length.toLong(), "WebDAV virtual root metadata")
-                } else if (requestMethod == "GET" || requestMethod == "HEAD") {
-                    val html = buildVirtualRootHtml()
-                    sendHtmlResponse(outputStream, 200, "OK", html, requestMethod == "HEAD")
-                    logAndLogEntry(clientIp, requestMethod, requestUri, 200, html.length.toLong(), "Index html")
-                } else if (requestMethod == "OPTIONS" && isWebdavEnabled) {
-                    sendOptionsResponse(outputStream)
-                    logAndLogEntry(clientIp, requestMethod, requestUri, 200, 0L, "WebDAV options call")
+                val isRootUri = decodedUri == "/" || decodedUri.isEmpty()
+                if (isRootUri) {
+                    // Return Virtual Root Listing
+                    if (requestMethod == "PROPFIND" && isWebdavEnabled) {
+                        val depth = headers["depth"] ?: "1"
+                        val xml = WebDavHandler.buildVirtualRootPropfindXML(getFoldersProvider(), depth)
+                        sendXmlResponse(outputStream, 207, "Multi-Status", xml)
+                        logAndLogEntry(clientIp, requestMethod, requestUri, 207, xml.length.toLong(), "WebDAV virtual root metadata")
+                    } else if (requestMethod == "GET" || requestMethod == "HEAD") {
+                        val html = buildVirtualRootHtml()
+                        sendHtmlResponse(outputStream, 200, "OK", html, requestMethod == "HEAD")
+                        logAndLogEntry(clientIp, requestMethod, requestUri, 200, html.length.toLong(), "Index html")
+                    } else if (requestMethod == "OPTIONS" && isWebdavEnabled) {
+                        sendOptionsResponse(outputStream)
+                        logAndLogEntry(clientIp, requestMethod, requestUri, 200, 0L, "WebDAV options call")
+                    } else {
+                        sendSimpleResponse(outputStream, 404, "Not Found", "Folder not found mapping")
+                        logAndLogEntry(clientIp, requestMethod, requestUri, 404, 0L, "Null directory path")
+                    }
                 } else {
-                    sendSimpleResponse(outputStream, 404, "Not Found", "Folder not found mapping")
-                    logAndLogEntry(clientIp, requestMethod, requestUri, 404, 0L, "Null directory path")
+                    sendSimpleResponse(outputStream, 404, "Not Found", "File or folder not found")
+                    logAndLogEntry(clientIp, requestMethod, requestUri, 404, 0L, "Path not found: $decodedUri")
                 }
                 return
             }
@@ -414,7 +420,7 @@ class HttpServer(
 
         val firstSegment = segments[0]
         val activeFolders = getFoldersProvider()
-        val matchingFolder = activeFolders.find { it.name.trim() == firstSegment.trim() } ?: return null
+        val matchingFolder = activeFolders.find { it.name.trim().equals(firstSegment.trim(), ignoreCase = true) } ?: return null
 
         val subRelativePath = segments.drop(1).joinToString(File.separator)
         val targetFile = if (subRelativePath.isEmpty()) {

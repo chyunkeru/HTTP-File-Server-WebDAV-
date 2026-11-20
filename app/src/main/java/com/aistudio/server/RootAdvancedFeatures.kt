@@ -56,6 +56,7 @@ object RootAdvancedFeatures {
             if (mIsDeviceRooted) {
                 isRootSimulationEnabled = false
                 Log.i(TAG, "SUCCESS: Root/Administrator privileges DETECTED. Initializing root systems engine.")
+                ServerManager.ensureRootShareIfDeviceRooted()
             } else {
                 Log.w(TAG, "WARNING: Standard privileges detected. Advanced root subsystem will operate in standard container space.")
             }

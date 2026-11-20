@@ -87,12 +87,17 @@ object WebDavHandler {
         val cleanVirtualPath = encodePath(rawVirtualPath)
 
         // Self entry
+        val selfDisplayName = if (cleanVirtualPath.trim('/').equals(encodePath(folderName).trim('/'), ignoreCase = true) || parentDir.name.isEmpty()) {
+            folderName
+        } else {
+            parentDir.name
+        }
         sb.append("  <D:response>\n")
         sb.append("    <D:href>${cleanVirtualPath}</D:href>\n")
         sb.append("    <D:propstat>\n")
         sb.append("      <D:status>HTTP/1.1 200 OK</D:status>\n")
         sb.append("      <D:prop>\n")
-        sb.append("        <D:displayname>${escapeXml(parentDir.name.ifEmpty { folderName })}</D:displayname>\n")
+        sb.append("        <D:displayname>${escapeXml(selfDisplayName)}</D:displayname>\n")
         sb.append("        <D:resourcetype><D:collection/></D:resourcetype>\n")
         sb.append("        <D:getlastmodified>${formatDateRfc1123(parentDir.lastModified())}</D:getlastmodified>\n")
         sb.append("      </D:prop>\n")

@@ -140,6 +140,30 @@ object ServerManager {
                         isDefault = true
                     ))
                 }
+                ensureRootShareIfDeviceRooted()
+            }
+        }
+    }
+
+    fun ensureRootShareIfDeviceRooted() {
+        val repo = repository ?: return
+        scope.launch(Dispatchers.IO) {
+            try {
+                if (RootAdvancedFeatures.isRootActive() && RootAdvancedFeatures.mIsDeviceRooted) {
+                    val existing = repo.getAllFoldersSync()
+                    val hasRoot = existing.any { it.absolutePath == "/" }
+                    if (!hasRoot) {
+                        repo.insertFolder(SharedFolder(
+                            name = "Root",
+                            absolutePath = "/",
+                            isWritable = true,
+                            isDefault = false
+                        ))
+                        Log.i(TAG, "Auto-created 'Root' share for rooted device")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking root share: ${e.message}")
             }
         }
     }
@@ -221,6 +245,7 @@ object ServerManager {
         activeServer?.start()
         _isRunning.value = true
         Log.d(TAG, "Server running at: $url")
+        ensureRootShareIfDeviceRooted()
 
         // Start inactivity monitor (configurable disconnect check)
         lastActiveTime = System.currentTimeMillis()
