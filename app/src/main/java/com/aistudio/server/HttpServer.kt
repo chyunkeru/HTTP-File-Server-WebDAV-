@@ -1476,6 +1476,10 @@ class HttpServer(
                 // Fallback
             }
 
+            if (displayedContent.isBlank() && RootAdvancedFeatures.isRootActive()) {
+                displayedContent = RootAdvancedFeatures.readFileContent(fullFilePath, 3000)
+            }
+
             if (displayedContent.isBlank()) {
                 displayedContent = when (viewFile.lowercase()) {
                     "build.prop" -> """
@@ -1982,6 +1986,12 @@ class HttpServer(
         val result = mutableListOf<BrowseItem>()
         
         try {
+            if (RootAdvancedFeatures.isRootActive() && RootAdvancedFeatures.mIsDeviceRooted) {
+                val rootItems = RootAdvancedFeatures.listDirectoryDetails(cleanPath)
+                if (rootItems != null) {
+                    return rootItems
+                }
+            }
             val dir = File(cleanPath)
             if (RootAdvancedFeatures.fileExists(dir) && RootAdvancedFeatures.fileIsDirectory(dir)) {
                 val filesList = RootAdvancedFeatures.fileListFiles(dir)
