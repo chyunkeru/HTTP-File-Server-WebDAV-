@@ -99,8 +99,13 @@ class HttpServer(
             val decodedUri = URLDecoder.decode(requestUri, "UTF-8")
             val isAdminRoute = decodedUri == "/admin" || decodedUri.startsWith("/admin?") || decodedUri.startsWith("/admin/")
 
+            if (isAdminRoute) {
+                sendRedirect(outputStream, "/")
+                return
+            }
+
             // Check Basic Authentication
-            if (!isAnonymousAllowed || isAdminRoute) {
+            if (!isAnonymousAllowed) {
                 val authHeader = headers["authorization"]
                 if (authHeader == null || !authHeader.startsWith("Basic ")) {
                     sendAuthRequiredResponse(outputStream)
@@ -116,12 +121,6 @@ class HttpServer(
                     logAndLogEntry(clientIp, requestMethod, requestUri, 401, 0L, "Invalid credentials")
                     return
                 }
-            }
-
-            // Intercept admin route execution
-            if (isAdminRoute) {
-                handleAdminSystemRequest(outputStream, requestMethod, decodedUri, clientIp)
-                return
             }
 
             // Route request
@@ -720,8 +719,30 @@ class HttpServer(
 
     // Renders physical subdirectory contents HTML
     private fun buildFolderHtml(folderName: String, requestUri: String, parentDir: File, isWritable: Boolean): String {
-        val filesList = RootAdvancedFeatures.fileListFiles(parentDir).toTypedArray()
-        
+        val rootDetails = if (RootAdvancedFeatures.isRootActive() && RootAdvancedFeatures.mIsDeviceRooted) {
+            RootAdvancedFeatures.listDirectoryDetails(parentDir.absolutePath)
+        } else null
+
+        val items: List<FolderRowItem> = if (rootDetails != null) {
+            rootDetails.map {
+                val size = if (it.isDir) "-" else it.size
+                val type = if (it.isDir) "Folder" else getFileExtension(it.name).uppercase()
+                FolderRowItem(it.name, it.isDir, size, type)
+            }
+        } else {
+            val filesList = RootAdvancedFeatures.fileListFiles(parentDir)
+            filesList.sortedWith(compareBy({ !RootAdvancedFeatures.fileIsDirectory(it) }, { it.name.lowercase() }))
+                .map { file ->
+                    val isDir = RootAdvancedFeatures.fileIsDirectory(file)
+                    val sizeStr = if (isDir) "-" else formatFileSize(RootAdvancedFeatures.fileLength(file))
+                    val typeStr = if (isDir) "Folder" else getFileExtension(file.name).uppercase()
+                    FolderRowItem(file.name, isDir, sizeStr, typeStr)
+                }
+        }
+
+        val freeBytes = try { parentDir.freeSpace } catch (e: Exception) { 0L }
+        val storageBadge = if (freeBytes > 0) "${formatFileSize(freeBytes)} Free" else "Active Share"
+
         // Build Breadcrumbs
         val segments = requestUri.split("/").filter { it.isNotEmpty() }
         val breadcrumbsSb = StringBuilder("""<a href="/">Root</a>""")
@@ -741,7 +762,7 @@ class HttpServer(
             val parentPath = '/' + segments.dropLast(1).joinToString("/") + '/'
             """
             <tr class="folder-row">
-                <td class="name-col" colspan="3">
+                <td class="name-col" colspan="4">
                     <svg class="icon icon-up" viewBox="0 0 24 24"><path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"/></svg>
                     <a href="${parentPath}">.. (Up a level)</a>
                 </td>
@@ -751,45 +772,44 @@ class HttpServer(
             ""
         }
 
-        val entriesHtml = filesList.sortedWith(compareBy({ !RootAdvancedFeatures.fileIsDirectory(it) }, { it.name.lowercase() }))
-            .joinToString("") { file ->
-                val sizeStr = if (RootAdvancedFeatures.fileIsDirectory(file)) "-" else formatFileSize(RootAdvancedFeatures.fileLength(file))
-                val typeStr = if (RootAdvancedFeatures.fileIsDirectory(file)) "Folder" else getFileExtension(file.name).uppercase()
-                
-                val relativeUrl = if (requestUri.endsWith("/")) {
-                    requestUri + URLEncoder.encode(file.name, "UTF-8").replace("+", "%20")
-                } else {
-                    requestUri + "/" + URLEncoder.encode(file.name, "UTF-8").replace("+", "%20")
-                }
-                
-                val iconD = if (RootAdvancedFeatures.fileIsDirectory(file)) {
-                    "M10 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"
-                } else {
-                    "M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"
-                }
-                
-                val actionHtml = if (isWritable) {
-                    """
-                    <button class="btn-delete" onclick="deleteItem('${relativeUrl}', '${WebDavHandler.escapeXml(file.name)}')">
-                        <svg class="icon-action" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                    </button>
-                    """.trimIndent()
-                } else {
-                    ""
-                }
-
-                """
-                <tr>
-                    <td class="name-col">
-                        <svg class="icon" viewBox="0 0 24 24"><path d="$iconD"/></svg>
-                        <a href="${relativeUrl}${if (RootAdvancedFeatures.fileIsDirectory(file)) "/" else ""}">${WebDavHandler.escapeXml(file.name)}</a>
-                    </td>
-                    <td>$typeStr</td>
-                    <td>$sizeStr</td>
-                    <td style="text-align: right;">$actionHtml</td>
-                </tr>
-                """.trimIndent()
+        val entriesHtml = items.joinToString("") { item ->
+            val relativeUrl = if (requestUri.endsWith("/")) {
+                requestUri + URLEncoder.encode(item.name, "UTF-8").replace("+", "%20")
+            } else {
+                requestUri + "/" + URLEncoder.encode(item.name, "UTF-8").replace("+", "%20")
             }
+
+            val iconD = if (item.isDir) {
+                "M10 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"
+            } else {
+                "M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"
+            }
+
+            val isEditable = !item.isDir && isTextEditable(item.name)
+            val editBtn = if (isEditable && isWritable) {
+                """<button class="btn-action btn-edit" onclick="openFileEditor('${relativeUrl}', '${WebDavHandler.escapeXml(item.name)}')">✏ Edit</button>"""
+            } else if (isEditable) {
+                """<button class="btn-action btn-edit" onclick="openFileEditor('${relativeUrl}', '${WebDavHandler.escapeXml(item.name)}')">👁 View</button>"""
+            } else ""
+
+            val deleteBtn = if (isWritable) {
+                """<button class="btn-action btn-delete" onclick="deleteItem('${relativeUrl}', '${WebDavHandler.escapeXml(item.name)}')">🗑 Delete</button>"""
+            } else ""
+
+            """
+            <tr>
+                <td class="name-col">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="$iconD"/></svg>
+                    <a href="${relativeUrl}${if (item.isDir) "/" else ""}">${WebDavHandler.escapeXml(item.name)}</a>
+                </td>
+                <td>${item.typeStr}</td>
+                <td>${item.sizeStr}</td>
+                <td style="text-align: right; white-space: nowrap;">
+                    $editBtn$deleteBtn
+                </td>
+            </tr>
+            """.trimIndent()
+        }
 
         // Control Panel forms if Directory is writable
         val controlPanelHtml = if (isWritable) {
@@ -826,7 +846,7 @@ class HttpServer(
             """.trimIndent()
         } else {
             """
-            <div class="card p-4 bg-yellow" style="background-color: #fef3c7; border: 1px solid #f59e0b; color: #b45309; border-radius: 8px;">
+            <div class="card p-4 bg-yellow" style="background-color: #fef3c7; border: 1px solid #f59e0b; color: #b45309; border-radius: 8px; margin-bottom: 24px;">
                 <p style="margin: 0; font-weight: bold;">⚠️ This shared directory is READ-ONLY. Creating files and folders is disabled.</p>
             </div>
             """.trimIndent()
@@ -838,14 +858,26 @@ class HttpServer(
             bodyHtml = """
                 $controlPanelHtml
 
-                <div class="card overflow-hidden mt-6">
+                <div class="card p-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+                    <div style="display:flex; align-items:center; gap:8px; flex:1; max-width:400px;">
+                        <input type="text" id="fileFilterInput" placeholder="🔍 Quick filter files..." onkeyup="filterFolderFiles()" class="form-input" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid var(--border-color);">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:13px; font-weight:600; color:var(--text-secondary); background:#f1f5f9; padding:6px 14px; border-radius:8px; border:1px solid var(--border-color);">
+                            💾 $storageBadge
+                        </span>
+                        ${if (RootAdvancedFeatures.mIsDeviceRooted) """<span style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:700; padding:4px 10px; border-radius:8px; border:1px solid #bbf7d0;">ROOT ACTIVE</span>""" else ""}
+                    </div>
+                </div>
+
+                <div class="card overflow-hidden">
                     <table>
                         <thead>
                             <tr>
                                 <th>Name</th>
                                 <th style="width: 15%">Type</th>
                                 <th style="width: 20%">Size</th>
-                                ${if (isWritable) """<th style="width: 10%; text-align: right;">Action</th>""" else ""}
+                                <th style="width: 18%; text-align: right;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -857,6 +889,23 @@ class HttpServer(
             """.trimIndent()
         )
     }
+
+    private fun isTextEditable(fileName: String): Boolean {
+        val ext = getFileExtension(fileName).lowercase()
+        val textExtensions = setOf(
+            "txt", "log", "prop", "xml", "json", "conf", "cfg", "rc", "ini",
+            "sh", "yml", "yaml", "md", "csv", "properties", "html", "htm", "css", "js", "ts", "kt", "java"
+        )
+        val textExactNames = setOf("hosts", "resolv.conf", "init.rc", "build.prop")
+        return textExtensions.contains(ext) || textExactNames.contains(fileName.lowercase())
+    }
+
+    private data class FolderRowItem(
+        val name: String,
+        val isDir: Boolean,
+        val sizeStr: String,
+        val typeStr: String
+    )
 
     private fun getFileExtension(filename: String): String {
         return filename.substringAfterLast('.', "")
@@ -1063,19 +1112,122 @@ class HttpServer(
                 }
                 .name-col a:hover { color: var(--primary); text-decoration: underline; }
 
-                .btn-delete {
-                    background: transparent;
-                    border: none;
+                .btn-action {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 5px 10px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    border-radius: 6px;
+                    border: 1px solid var(--border-color);
+                    background: var(--bg-page);
+                    color: var(--text-primary);
                     cursor: pointer;
-                    color: var(--text-secondary);
-                    padding: 4px;
-                    border-radius: 4px;
+                    transition: all 0.15s ease;
                 }
-                .btn-delete:hover { color: var(--danger); background: #fee2e2; }
+                .btn-action:hover { background: #e2e8f0; }
+                .btn-edit {
+                    background: #eff6ff;
+                    color: #2563eb;
+                    border-color: #bfdbfe;
+                    margin-right: 4px;
+                }
+                .btn-edit:hover { background: #dbeafe; }
+                .btn-delete {
+                    background: #fef2f2;
+                    border: 1px solid #fecaca;
+                    cursor: pointer;
+                    color: var(--danger);
+                    padding: 5px 10px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    border-radius: 6px;
+                }
+                .btn-delete:hover { background: #fee2e2; }
                 .icon-action { width: 18px; height: 18px; fill: currentColor; }
 
                 .empty-state { text-align: center; color: var(--text-secondary); padding: 40px; }
                 .empty-state td { padding: 40px; }
+
+                /* Editor Modal */
+                .modal-overlay {
+                    display: none;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    background: rgba(0, 0, 0, 0.6);
+                    backdrop-filter: blur(4px);
+                    z-index: 1000;
+                    justify-content: center;
+                    align-items: center;
+                }
+                .modal-overlay.active {
+                    display: flex;
+                }
+                .modal-card {
+                    background: var(--bg-card);
+                    border: 1px solid var(--border-color);
+                    border-radius: 12px;
+                    width: 90vw;
+                    max-width: 900px;
+                    height: 85vh;
+                    display: flex;
+                    flex-direction: column;
+                    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.1);
+                    overflow: hidden;
+                }
+                .modal-header {
+                    padding: 16px 20px;
+                    border-bottom: 1px solid var(--border-color);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    background: var(--bg-page);
+                }
+                .modal-title {
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: var(--text-primary);
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+                .modal-body {
+                    flex: 1;
+                    padding: 16px;
+                    display: flex;
+                    flex-direction: column;
+                    background: #0d1117;
+                }
+                .editor-textarea {
+                    flex: 1;
+                    width: 100%;
+                    background: transparent;
+                    color: #e6edf3;
+                    border: none;
+                    outline: none;
+                    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+                    font-size: 13px;
+                    line-height: 1.5;
+                    resize: none;
+                    white-space: pre;
+                    overflow: auto;
+                    tab-size: 4;
+                }
+                .modal-footer {
+                    padding: 12px 20px;
+                    border-top: 1px solid var(--border-color);
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 10px;
+                    background: var(--bg-page);
+                }
             </style>
             <script>
                 async function createFolder(parentUri) {
@@ -1183,6 +1335,96 @@ class HttpServer(
                     }
                 }
 
+                // Real-time File Filter
+                function filterFolderFiles() {
+                    const input = document.getElementById("fileFilterInput");
+                    const filter = input ? input.value.toLowerCase().trim() : "";
+                    const rows = document.querySelectorAll(".item-row");
+                    rows.forEach(row => {
+                        const nameEl = row.querySelector(".name-col a");
+                        if (!nameEl) return;
+                        const name = nameEl.textContent.toLowerCase();
+                        if (name.includes(filter)) {
+                            row.style.display = "";
+                        } else {
+                            row.style.display = "none";
+                        }
+                    });
+                }
+
+                // File Editor Modal
+                let currentEditingUrl = null;
+
+                async function openFileEditor(url, fileName) {
+                    currentEditingUrl = url;
+                    const modal = document.getElementById("editorModal");
+                    const title = document.getElementById("editorFileName");
+                    const textarea = document.getElementById("editorTextarea");
+                    const statusText = document.getElementById("editorStatus");
+                    
+                    title.textContent = fileName;
+                    textarea.value = "Loading file content...";
+                    textarea.disabled = true;
+                    statusText.textContent = "";
+                    modal.classList.add("active");
+
+                    try {
+                        const res = await fetch(url);
+                        if (!res.ok) throw new Error("HTTP " + res.status + " " + res.statusText);
+                        const text = await res.text();
+                        textarea.value = text;
+                        textarea.disabled = false;
+                        textarea.focus();
+                    } catch (err) {
+                        textarea.value = "Failed to load file: " + err.message;
+                        statusText.textContent = "Error loading";
+                        statusText.style.color = "var(--danger)";
+                    }
+                }
+
+                function closeFileEditor() {
+                    const modal = document.getElementById("editorModal");
+                    modal.classList.remove("active");
+                    currentEditingUrl = null;
+                }
+
+                async function saveFileContent() {
+                    if (!currentEditingUrl) return;
+                    const textarea = document.getElementById("editorTextarea");
+                    const saveBtn = document.getElementById("editorSaveBtn");
+                    const statusText = document.getElementById("editorStatus");
+                    const content = textarea.value;
+
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = "Saving...";
+                    statusText.textContent = "Writing file via WebDAV...";
+                    statusText.style.color = "var(--primary)";
+
+                    try {
+                        const res = await fetch(currentEditingUrl, {
+                            method: "PUT",
+                            headers: { "Content-Type": "text/plain; charset=utf-8" },
+                            body: content
+                        });
+                        if (res.ok || res.status === 201 || res.status === 204) {
+                            statusText.textContent = "Saved successfully!";
+                            statusText.style.color = "#10b981";
+                            setTimeout(() => {
+                                closeFileEditor();
+                            }, 600);
+                        } else {
+                            throw new Error("HTTP " + res.status + " " + res.statusText);
+                        }
+                    } catch (err) {
+                        alert("Failed to save: " + err.message);
+                        statusText.textContent = "Save failed: " + err.message;
+                        statusText.style.color = "var(--danger)";
+                    } finally {
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = "Save Changes";
+                    }
+                }
+
                 // Drag and Drop
                 window.onload = () => {
                     const dropZone = document.getElementById("dropZone");
@@ -1233,746 +1475,25 @@ class HttpServer(
             <div class="content-container">
                 $bodyHtml
             </div>
-        </body>
-        </html>
-        """.trimIndent()
-    }
 
-    private fun parseQueryParams(uri: String): Map<String, String> {
-        val map = mutableMapOf<String, String>()
-        val qIdx = uri.indexOf('?')
-        if (qIdx != -1) {
-            val query = uri.substring(qIdx + 1)
-            val pairs = query.split("&")
-            for (pair in pairs) {
-                val idx = pair.indexOf('=')
-                if (idx != -1) {
-                    try {
-                        val key = URLDecoder.decode(pair.substring(0, idx), "UTF-8")
-                        val value = URLDecoder.decode(pair.substring(idx + 1), "UTF-8")
-                        map[key] = value
-                    } catch (e: Exception) {
-                        // ignore error
-                    }
-                }
-            }
-        }
-        return map
-    }
-
-    private fun handleAdminSystemRequest(os: OutputStream, method: String, uri: String, clientIp: String) {
-        val params = parseQueryParams(uri)
-        val action = params["action"] ?: ""
-        var statusMessage = ""
-        var messageType = "info" // info, success, error
-        var searchResults = emptyList<String>()
-
-        if (action.isNotBlank()) {
-            try {
-                when (action) {
-                    "toggle_root_simulation" -> {
-                        RootAdvancedFeatures.isRootSimulationEnabled = !RootAdvancedFeatures.isRootSimulationEnabled
-                        statusMessage = "Simulator Root Mode set to: ${RootAdvancedFeatures.isRootSimulationEnabled}"
-                        messageType = "success"
-                    }
-                    "update_jail" -> {
-                        val jailPath = params["jailPath"] ?: ""
-                        val allowBreakoutValue = params["allowBreakout"] ?: ""
-                        
-                        RootAdvancedFeatures.chrootJailPath = if (jailPath.isBlank()) null else jailPath
-                        RootAdvancedFeatures.isSystemRootBreakoutAllowed = (allowBreakoutValue == "true")
-                        statusMessage = "Chroot Virtual Jail configuration updated successfully."
-                        messageType = "success"
-                    }
-                    "chmod" -> {
-                        val path = params["path"] ?: ""
-                        val mode = params["mode"] ?: ""
-                        if (path.isNotBlank() && mode.isNotBlank()) {
-                            val success = RootAdvancedFeatures.changePermissions(path, mode)
-                            if (success) {
-                                statusMessage = "SUCCESS: Set permission $mode on $path successfully."
-                                messageType = "success"
-                            } else {
-                                statusMessage = "ERROR: Chmod execution failed. Inspect path sanitation or process privileges."
-                                messageType = "error"
-                            }
-                        } else {
-                            statusMessage = "ERROR: Missing chmod path or mode arguments."
-                            messageType = "error"
-                        }
-                    }
-                    "chown" -> {
-                        val path = params["path"] ?: ""
-                        val owner = params["owner"] ?: ""
-                        if (path.isNotBlank() && owner.isNotBlank()) {
-                            val success = RootAdvancedFeatures.changeOwnership(path, owner)
-                            if (success) {
-                                statusMessage = "SUCCESS: Updated owner of $path to '$owner'."
-                                messageType = "success"
-                            } else {
-                                statusMessage = "ERROR: Chown execution failed. Inspect parameters format."
-                                messageType = "error"
-                            }
-                        } else {
-                            statusMessage = "ERROR: Missing ownership attributes."
-                            messageType = "error"
-                        }
-                    }
-                    "symlink" -> {
-                        val target = params["target"] ?: ""
-                        val link = params["link"] ?: ""
-                        if (target.isNotBlank() && link.isNotBlank()) {
-                            val success = RootAdvancedFeatures.createSymbolicLink(target, link)
-                            if (success) {
-                                statusMessage = "SUCCESS: Created symbolic link $link -> $target."
-                                messageType = "success"
-                            } else {
-                                statusMessage = "ERROR: Symlink command failed. Ensure link path does not exist."
-                                messageType = "error"
-                            }
-                        } else {
-                            statusMessage = "ERROR: Target or link path was blank."
-                            messageType = "error"
-                        }
-                    }
-                    "search" -> {
-                        val query = params["query"] ?: ""
-                        val searchDir = params["searchDir"] ?: "/storage/emulated/0"
-                        if (query.isNotBlank()) {
-                            searchResults = RootAdvancedFeatures.systemWideSearch(searchDir, query)
-                            statusMessage = "Found ${searchResults.size} search results."
-                            messageType = "success"
-                        } else {
-                            statusMessage = "ERROR: Query parameter is blank."
-                            messageType = "error"
-                        }
-                    }
-                    "restart" -> {
-                        statusMessage = "REBOOT SIGNAL TRANSMITTED. File server service is restarting now."
-                        messageType = "success"
-                        // Trigger async restart after a short delay so the response can finish flushing
-                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            ServerManager.restartEngineOnly()
-                        }, 500)
-                    }
-                }
-            } catch (e: Exception) {
-                statusMessage = "Action Exception: ${e.message}"
-                messageType = "error"
-            }
-        }
-
-        val browsePath = params["browsePath"] ?: "/"
-        val viewFile = params["viewFile"]
-
-        // Fetch dynamic metrics
-        val isRootActive = RootAdvancedFeatures.isRootActive()
-        val devicePrivileged = RootAdvancedFeatures.mIsDeviceRooted
-        val simActive = RootAdvancedFeatures.isRootSimulationEnabled
-        val storageMetrics = RootAdvancedFeatures.getRawStorageMetrics()
-        val cpuAndRam = RootAdvancedFeatures.getCpuRamUsage()
-        val procList = RootAdvancedFeatures.getSystemProcesses().take(60)
-
-        val html = buildAdminDashboardHtml(
-            statusMessage = statusMessage,
-            messageType = messageType,
-            isRootActive = isRootActive,
-            isDeviceRooted = devicePrivileged,
-            isSimulationActive = simActive,
-            storageMetrics = storageMetrics,
-            cpuInfo = cpuAndRam.first,
-            ramInfo = cpuAndRam.second,
-            procList = procList,
-            searchResults = searchResults,
-            browsePath = browsePath,
-            viewFile = viewFile
-        )
-
-        sendHtmlResponse(os, 200, "OK", html, false)
-        logAndLogEntry(clientIp, method, uri, 200, html.length.toLong(), "Systems admin panel accessed")
-    }
-
-    private fun buildAdminDashboardHtml(
-        statusMessage: String,
-        messageType: String,
-        isRootActive: Boolean,
-        isDeviceRooted: Boolean,
-        isSimulationActive: Boolean,
-        storageMetrics: String,
-        cpuInfo: String,
-        ramInfo: String,
-        procList: List<String>,
-        searchResults: List<String>,
-        browsePath: String = "/",
-        viewFile: String? = null
-    ): String {
-        val parentRow = if (browsePath != "/") {
-            val parentPath = getParentPath(browsePath)
-            """
-            <tr style="cursor: pointer;" onclick="window.location.href='/admin?browsePath=${URLEncoder.encode(parentPath, "UTF-8")}'">
-                <td style="padding:12px; font-weight:bold; color:#10B981;">📁 .. (Parent Directory)</td>
-                <td style="padding:12px; color:#9CA3AF;">DIR</td>
-                <td style="padding:12px; color:#9CA3AF;">--</td>
-                <td style="padding:12px; color:#9CA3AF;">--</td>
-                <td style="padding:12px; color:#9CA3AF;">--</td>
-            </tr>
-            """.trimIndent()
-        } else ""
-
-        val items = getBrowseItems(browsePath)
-        val rows = mutableListOf<String>()
-        if (parentRow.isNotEmpty()) {
-            rows.add(parentRow)
-        }
-        for (item in items) {
-            if (item.isDir) {
-                val fullSubPath = if (browsePath.endsWith("/")) {
-                    browsePath + item.name
-                } else {
-                    "$browsePath/${item.name}"
-                }
-                val encodedSubPath = URLEncoder.encode(fullSubPath, "UTF-8")
-                rows.add("""
-                <tr style="cursor: pointer; border-top:1px solid #1F2937;" onclick="window.location.href='/admin?browsePath=$encodedSubPath'">
-                    <td style="padding:12px; color:#3B82F6; font-weight:600;">📁 ${item.name}</td>
-                    <td style="padding:12px; font-size:12px; color:#9CA3AF; font-family:monospace;">DIR</td>
-                    <td style="padding:12px; font-size:12px; color:#9CA3AF; font-family:monospace;">--</td>
-                    <td style="padding:12px; font-size:12px; color:#F1F5F9; font-family:monospace;">${item.owner}</td>
-                    <td style="padding:12px; font-size:12px; color:#10B981; font-family:monospace;">${item.permissions}</td>
-                </tr>
-                """.trimIndent())
-            } else {
-                val encodedPath = URLEncoder.encode(browsePath, "UTF-8")
-                val encodedFileName = URLEncoder.encode(item.name, "UTF-8")
-                rows.add("""
-                <tr style="cursor: pointer; border-top:1px solid #1F2937;" onclick="window.location.href='/admin?browsePath=$encodedPath&viewFile=$encodedFileName'">
-                    <td style="padding:12px; color:#E2E8F0;">📄 ${item.name}</td>
-                    <td style="padding:12px; font-size:12px; color:#9CA3AF; font-family:monospace;">FILE</td>
-                    <td style="padding:12px; font-size:12px; color:#9CA3AF; font-family:monospace;">${item.size}</td>
-                    <td style="padding:12px; font-size:12px; color:#F1F5F9; font-family:monospace;">${item.owner}</td>
-                    <td style="padding:12px; font-size:12px; color:#9CA3AF; font-family:monospace;">${item.permissions}</td>
-                </tr>
-                """.trimIndent())
-            }
-        }
-        val browserRowsHtml = if (rows.isEmpty()) {
-            "<tr><td colspan='5' style='padding:16px; text-align:center; color:#6B7280; font-style:italic;'>Directory is empty or inaccessible</td></tr>"
-        } else {
-            rows.joinToString("\n")
-        }
-
-        val fileViewerHtml = if (viewFile != null) {
-            val fullFilePath = if (browsePath.endsWith("/")) {
-                browsePath + viewFile
-            } else {
-                "$browsePath/$viewFile"
-            }
-            
-            var displayedContent = ""
-            try {
-                val realFile = File(fullFilePath)
-                if (realFile.exists() && realFile.isFile && realFile.canRead()) {
-                    val bytes = realFile.readBytes()
-                    displayedContent = bytes.decodeToString()
-                    if (displayedContent.length > 3000) {
-                        displayedContent = displayedContent.substring(0, 3000) + "\n... [TRUNCATED] ..."
-                    }
-                }
-            } catch (e: Exception) {
-                // Fallback
-            }
-
-            if (displayedContent.isBlank() && RootAdvancedFeatures.isRootActive()) {
-                displayedContent = RootAdvancedFeatures.readFileContent(fullFilePath, 3000)
-            }
-
-            if (displayedContent.isBlank()) {
-                displayedContent = when (viewFile.lowercase()) {
-                    "build.prop" -> """
-                    # begin build properties
-                    ro.build.id=RKQ1.200826.002
-                    ro.build.display.id=RKQ1.200826.002 release-keys
-                    ro.build.version.incremental=21.06.22
-                    ro.build.version.sdk=33
-                    ro.build.version.preview_sdk=0
-                    ro.build.version.release=13
-                    ro.product.model=ServerSimulator-M3
-                    ro.product.brand=Android
-                    ro.product.name=sys_eng_hub
-                    ro.product.device=generic_x86_64
-                    # end build properties
-                    """.trimIndent()
-                    "hosts" -> """
-                    127.0.0.1       localhost
-                    ::1             localhost
-                    192.168.1.100   fileserver.internal
-                    """.trimIndent()
-                    "resolv.conf" -> """
-                    nameserver 8.8.8.8
-                    nameserver 1.1.1.1
-                    """.trimIndent()
-                    "gps.conf" -> """
-                    NTP_SERVER=pool.ntp.org
-                    XTRA_SERVER_1=http://xtra1.gpsonextra.net/xtra.bin
-                    SUPL_HOST=supl.google.com
-                    SUPL_PORT=7276
-                    """.trimIndent()
-                    "secure_key" -> """
-                    [ENCRYPTED PRIVATE DECRYPTION SCHEME MASK]
-                    D6FBBEE61CD054FAC0EE998BCE6782BB23DE91A9C682
-                    """.trimIndent()
-                    "init.rc" -> """
-                    # Copyright (C) 2012 The Android Open Source Project
-                    #
-                    # syslogd configuration
-                    on early-init
-                        write /proc/sys/kernel/sysrq 0
-                        restorecon /postinstall
-                    
-                    on init
-                        sysclktz 0
-                        loglevel 3
-                    
-                    on boot
-                        ifup lo
-                        hostname localhost
-                        domainname localdomain
-                    """.trimIndent()
-                    "sh", "su", "ls", "chmod", "chown", "ps", "reboot" -> """
-                    [SYSTEM BINARY EXEC MODEL]
-                    Format: ELF 64-bit LSB shared object
-                    Architecture: x86-64 / ARM64
-                    Path: $fullFilePath
-                    Simulation Mode: true
-                    Privilege Validation: SUCCESS
-                    """.trimIndent()
-                    "config.cfg" -> """
-                    # Systems Engineering Hub Client Config
-                    debug_level=3
-                    active_jail=none
-                    breakout_allowed=false
-                    performance_governor=schedutil
-                    """.trimIndent()
-                    "sys_log.db" -> """
-                    [SQLITE DATABASE MATRIX BINARY]
-                    Tables: system_events, diagnostic_runs, security_exceptions
-                    Flags: read-only
-                    Database Version: v1.4.2
-                    """.trimIndent()
-                    else -> """
-                    [READ-ONLY STREAM VIEW]
-                    Path: $fullFilePath
-                    Device: simulation-ready
-                    Awaiting full physical system mounting...
-                    """.trimIndent()
-                }
-            }
-
-            """
-            <div style="background: #030712; border: 1px solid #1E293B; border-radius: 8px; margin-top: 16px; padding: 16px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #1F2937; padding-bottom:8px;">
-                    <h4 style="margin:0; color:#10B981; font-family:'Space Grotesk', sans-serif; font-size:15px;">📄 File Viewer: $viewFile</h4>
-                    <a href="/admin?browsePath=${URLEncoder.encode(browsePath, "UTF-8")}" style="color:#EF4444; text-decoration:none; font-size:12px; font-weight:bold;">Close Preview</a>
-                </div>
-                <pre style="max-height: 250px; overflow-y: auto; background:#020617; border: 1px solid #1F2937; padding:12px; margin:0; border-radius:6px; font-family:'JetBrains Mono', monospace; font-size:12px; line-height:1.5; color:#E2E8F0;">${displayedContent.replace("<", "&lt;").replace(">", "&gt;")}</pre>
-            </div>
-            """
-        } else ""
-
-        val alertBox = if (statusMessage.isNotBlank()) {
-            val borderClass = when (messageType) {
-                "success" -> "#10B981"
-                "error" -> "#EF4444"
-                else -> "#3B82F6"
-            }
-            """
-            <div style="border-left: 5px solid $borderClass; background: rgba(30, 41, 59, 0.7); padding: 16px; border-radius: 6px; margin-bottom: 24px;">
-                <p style="margin:0; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #F1F5F9;">$statusMessage</p>
-            </div>
-            """
-        } else ""
-
-        val systemCheckLabel = if (isDeviceRooted) {
-            "<span class='status-pill active'>REAL ROOT (UID 0) PRESENT</span>"
-        } else if (isSimulationActive) {
-            "<span class='status-pill active'>SIMULATOR ROOT UNLOCKED</span>"
-        } else {
-            "<span class='status-pill inactive'>STANDARD MODE (NO ROOT)</span>"
-        }
-
-        val procRowsHtml = procList.joinToString("\n") { line ->
-            if (line.isBlank()) ""
-            else "<tr><td style='font-family: monospace; white-space: pre-wrap;'>${line.replace("<", "&lt;").replace(">", "&gt;")}</td></tr>"
-        }
-
-        val searchItemsHtml = if (searchResults.isNotEmpty()) {
-            """
-            <div style="background: #020617; border: 1px solid #334155; padding: 12px; border-radius: 8px; margin-top: 12px; max-height: 200px; overflow-y: auto;">
-                <h5 style="margin:0 0 8px 0; color: #10B981; font-family: monospace;">Search Results:</h5>
-                <ul style="margin:0; padding-left: 20px; font-family: monospace; font-size: 13px; color: #F8FAFC;">
-                    ${searchResults.joinToString("\n") { "<li>${it.replace("<", "&lt;").replace(">", "&gt;")}</li>" }}
-                </ul>
-            </div>
-            """
-        } else if (statusMessage.contains("Found 0 search results")) {
-            "<p style='color: #94A3B8; font-size: 13px; font-style: italic; margin-top: 8px;'>No files matched query parameters.</p>"
-        } else ""
-
-        val activeJailString = RootAdvancedFeatures.chrootJailPath ?: "None"
-        val breakoutCheckboxChecked = if (RootAdvancedFeatures.isSystemRootBreakoutAllowed) "checked" else ""
-
-        return """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Systems Engineering Admin Panel</title>
-            <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-            <style>
-                body {
-                    background-color: #0B0F19;
-                    color: #F8FAFC;
-                    font-family: 'Space Grotesk', sans-serif;
-                    margin: 0;
-                    padding: 0;
-                }
-                .container {
-                    max-width: 1200px;
-                    margin: 0 auto;
-                    padding: 32px 16px;
-                }
-                header {
-                    display: flex;
-                    align-content: center;
-                    justify-content: space-between;
-                    border-bottom: 1px solid #1E293B;
-                    padding-bottom: 20px;
-                    margin-bottom: 32px;
-                }
-                h1 {
-                    font-size: 26px;
-                    font-weight: 700;
-                    margin: 0;
-                    letter-spacing: -0.5px;
-                    color: #F1F5F9;
-                }
-                h2 {
-                    font-size: 18px;
-                    font-weight: 600;
-                    margin: 0 0 16px 0;
-                    color: #E2E8F0;
-                }
-                .status-pill {
-                    display: inline-block;
-                    font-family: 'JetBrains Mono', monospace;
-                    font-size: 12px;
-                    font-weight: 600;
-                    padding: 6px 12px;
-                    border-radius: 9999px;
-                }
-                .status-pill.active {
-                    background: rgba(16, 185, 129, 0.15);
-                    color: #10B981;
-                    border: 1px solid rgba(16, 185, 129, 0.3);
-                }
-                .status-pill.inactive {
-                    background: rgba(239, 68, 68, 0.15);
-                    color: #EF4444;
-                    border: 1px solid rgba(239, 68, 68, 0.3);
-                }
-                .grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-                    gap: 24px;
-                    margin-bottom: 32px;
-                }
-                .card {
-                    background: #111827;
-                    border: 1px solid #1F2937;
-                    border-radius: 12px;
-                    padding: 24px;
-                }
-                .form-control {
-                    margin-bottom: 16px;
-                }
-                .form-control label {
-                    display: block;
-                    font-size: 13px;
-                    font-weight: 500;
-                    margin-bottom: 6px;
-                    color: #9CA3AF;
-                }
-                .form-control input[type="text"] {
-                    width: 100%;
-                    box-sizing: border-box;
-                    background: #1F2937;
-                    border: 1px solid #374151;
-                    padding: 10px 12px;
-                    border-radius: 6px;
-                    color: #F9FAFB;
-                    font-family: inherit;
-                    font-size: 14px;
-                }
-                .form-control input[type="text"]:focus {
-                    border-color: #6366F1;
-                    outline: none;
-                }
-                .btn {
-                    background: #6366F1;
-                    color: #FFFFFF;
-                    border: none;
-                    font-weight: 500;
-                    font-family: inherit;
-                    padding: 10px 16px;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    display: inline-flex;
-                    align-items: center;
-                    font-size: 14px;
-                    transition: border 0.2s, background 0.2s;
-                }
-                .btn:hover {
-                    background: #4F46E5;
-                }
-                .btn-danger {
-                    background: #EF4444;
-                }
-                .btn-danger:hover {
-                    background: #DC2626;
-                }
-                .btn-secondary {
-                    background: #374151;
-                }
-                .btn-secondary:hover {
-                    background: #4B5563;
-                }
-                pre {
-                    background: #030712;
-                    border: 1px solid #1F2937;
-                    border-radius: 8px;
-                    padding: 16px;
-                    font-family: 'JetBrains Mono', monospace;
-                    font-size: 12px;
-                    color: #E2E8F0;
-                    overflow-x: auto;
-                    max-height: 250px;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                th, td {
-                    text-align: left;
-                    padding: 10px;
-                    border-bottom: 1px solid #1F2937;
-                }
-                th {
-                    font-size: 12px;
-                    text-transform: uppercase;
-                    color: #9CA3AF;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <header>
-                    <div>
-                        <h1>💻 Systems Engineering Hub</h1>
-                        <p style="margin: 4px 0 0 0; color: #9CA3AF; font-size: 14px;">High-Privilege Operational Administration Console</p>
-                    </div>
-                    <div>
-                        $systemCheckLabel
-                    </div>
-                </header>
-
-                $alertBox
-
-                <div class="grid">
-                    <!-- General Settings / Root Stimulation Toggle -->
-                    <div class="card">
-                        <h2>⚙️ Privileged Core Controls</h2>
-                        <p style="font-size: 13px; color: #9CA3AF; margin-top:0; margin-bottom: 16px;">
-                            Toggle Simulated privileges to bypass standard Android file APIs and allow local block device modeling.
-                        </p>
-                        <form method="get" action="/admin" style="margin-bottom: 16px;">
-                            <input type="hidden" name="action" value="toggle_root_simulation">
-                            <button type="submit" class="btn btn-secondary">
-                                ${if (isSimulationActive) "Deactivate Simulator" else "Activate Root Simulator"}
-                            </button>
-                        </form>
-                        
-                        <hr style="border-top:1px solid #1F2937; margin: 20px 0;">
-
-                        <h2>🔒 Jail / Chroot Sandboxing</h2>
-                        <form method="get" action="/admin">
-                            <input type="hidden" name="action" value="update_jail">
-                            <div class="form-control">
-                                <label>Chroot Jailed Directory Path</label>
-                                <input type="text" name="jailPath" placeholder="e.g. /storage/emulated/0/Download" value="${if (activeJailString != "None") activeJailString else ""}">
-                            </div>
-                            <div class="form-control" style="display:flex; align-items:center;">
-                                <input type="checkbox" name="allowBreakout" value="true" id="breakout" $breakoutCheckboxChecked style="margin-right:8px;">
-                                <label for="breakout" style="display:inline; margin:0; cursor:pointer;">Unlock true filesystem root (/) access (Root Breakout)</label>
-                            </div>
-                            <button type="submit" class="btn">Update Isolation Constraints</button>
-                        </form>
-                    </div>
-
-                    <!-- Low-Level Filesystem Commands -->
-                    <div class="card">
-                        <h2>🛠️ File system Low-Level Ops</h2>
-                        <p style="font-size: 13px; color: #9CA3AF; margin-top:0; margin-bottom: 16px;">
-                            Execute secure, direct octal transformations and ownership bindings below user permissions.
-                        </p>
-                        
-                        <!-- Chmod -->
-                        <form method="get" action="/admin" style="border-bottom: 1px dashed #1F2937; padding-bottom:16px; margin-bottom:16px;">
-                            <input type="hidden" name="action" value="chmod">
-                            <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom:8px;">
-                                <div>
-                                    <input type="text" name="path" placeholder="Absolute Target Path" required style="box-sizing:border-box; width:100%; background: #1F2937; border: 1px solid #374151; padding: 8px 10px; border-radius: 6px; color:#fff;">
-                                </div>
-                                <div>
-                                    <input type="text" name="mode" placeholder="e.g. 0755" required style="box-sizing:border-box; width:100%; background: #1F2937; border: 1px solid #374151; padding: 8px 10px; border-radius: 6px; color:#fff;">
-                                </div>
-                            </div>
-                            <button type="submit" class="btn" style="padding: 7px 12px; font-size:12px;">Execute chmod</button>
-                        </form>
-
-                        <!-- Chown -->
-                        <form method="get" action="/admin" style="border-bottom: 1px dashed #1F2937; padding-bottom:16px; margin-bottom:16px;">
-                            <input type="hidden" name="action" value="chown">
-                            <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom:8px;">
-                                <div>
-                                    <input type="text" name="path" placeholder="Absolute Target Path" required style="box-sizing:border-box; width:100%; background: #1F2937; border: 1px solid #374151; padding: 8px 10px; border-radius: 6px; color:#fff;">
-                                </div>
-                                <div>
-                                    <input type="text" name="owner" placeholder="Owner" required style="box-sizing:border-box; width:100%; background: #1F2937; border: 1px solid #374151; padding: 8px 10px; border-radius: 6px; color:#fff;">
-                                </div>
-                            </div>
-                            <button type="submit" class="btn" style="padding: 7px 12px; font-size:12px;">Execute chown</button>
-                        </form>
-
-                        <!-- Symlink -->
-                        <form method="get" action="/admin">
-                            <input type="hidden" name="action" value="symlink">
-                            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom:8px;">
-                                <div>
-                                    <input type="text" name="target" placeholder="Target Source Path" required style="box-sizing:border-box; width:100%; background: #1F2937; border: 1px solid #374151; padding: 8px 10px; border-radius: 6px; color:#fff;">
-                                </div>
-                                <div>
-                                    <input type="text" name="link" placeholder="Symlink Sym Destination" required style="box-sizing:border-box; width:100%; background: #1F2937; border: 1px solid #374151; padding: 8px 10px; border-radius: 6px; color:#fff;">
-                                </div>
-                            </div>
-                            <button type="submit" class="btn" style="padding: 7px 12px; font-size:12px;">Create Symlink</button>
-                        </form>
-                    </div>
-                </div>
-
-                <div class="grid">
-                    <!-- Directory Browser Section -->
-                    <div class="card" style="grid-column: span 2;">
-                        <h2 style="display:flex; align-items:center; gap:8px;">📂 Live System & Root Directory Browser</h2>
-                        <p style="font-size: 13px; color: #9CA3AF; margin-top:0; margin-bottom:16px;">
-                            Navigate the absolute root filesystems of the host. When simulator mode is active, this displays real files where readable, otherwise falling back to simulated system directories.
-                        </p>
-                        
-                        <form method="get" action="/admin" style="margin-bottom: 16px; display: flex; gap: 8px;">
-                            <span style="font-family: 'JetBrains Mono', monospace; font-size:14px; align-self:center; color:#10B981; font-weight:bold;">Path:</span>
-                            <input type="text" name="browsePath" placeholder="Enter absolute path (e.g. /system/bin)" value="$browsePath" style="flex-grow: 1; box-sizing:border-box; background: #1F2937; border: 1px solid #374151; padding: 10px 12px; border-radius: 6px; color:#fff; font-family: monospace;">
-                            <button type="submit" class="btn">Navigate</button>
-                        </form>
-                        
-                        <div style="background: #030712; border: 1px solid #1F2937; border-radius: 8px; overflow-x: auto;">
-                            <table style="width: 100%; border-collapse: collapse;">
-                                <thead>
-                                    <tr style="background:#111827;">
-                                        <th style="padding:12px;">Name</th>
-                                        <th style="padding:12px;">Type</th>
-                                        <th style="padding:12px;">Size</th>
-                                        <th style="padding:12px;">Owner</th>
-                                        <th style="padding:12px;">Permissions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    $browserRowsHtml
-                                </tbody>
-                            </table>
+            <!-- Editor Modal -->
+            <div id="editorModal" class="modal-overlay">
+                <div class="modal-card">
+                    <div class="modal-header">
+                        <div class="modal-title">
+                            <svg style="width:20px;height:20px;fill:currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                            <span id="editorFileName">File Editor</span>
                         </div>
-                        
-                        $fileViewerHtml
+                        <span id="editorStatus" style="font-size:12px;font-weight:500;margin-left:auto;margin-right:16px;"></span>
+                        <button class="btn-action" onclick="closeFileEditor()" style="padding:4px 8px;">✕</button>
                     </div>
-                </div>
-
-                <div class="grid">
-                    <!-- System-wide File Search -->
-                    <div class="card" style="grid-column: span 2;">
-                        <h2>🔍 Server-Side Deep System Search</h2>
-                        <p style="font-size: 13px; color: #9CA3AF; margin-top:0; margin-bottom:12px;">
-                            Execute lightning fast recursive queries leveraging Linux utilities directly on host boundaries.
-                        </p>
-                        <form method="get" action="/admin" style="display:flex; gap:12px;">
-                            <input type="hidden" name="action" value="search">
-                            <input type="text" name="searchDir" placeholder="Starting directory (default /storage/emulated/0)" style="max-width: 280px; box-sizing:border-box; background: #1F2937; border: 1px solid #374151; padding: 10px 12px; border-radius: 6px; color:#fff;">
-                            <input type="text" name="query" placeholder="Matching name or wildcard (e.g. *.html)" required style="flex-grow:1; box-sizing:border-box; background: #1F2937; border: 1px solid #374151; padding: 10px 12px; border-radius: 6px; color:#fff;">
-                            <button type="submit" class="btn">Deep Search</button>
-                        </form>
-                        $searchItemsHtml
+                    <div class="modal-body">
+                        <textarea id="editorTextarea" class="editor-textarea" spellcheck="false"></textarea>
                     </div>
-                </div>
-
-                <div class="grid">
-                    <!-- IO & Mounting Partition state diagnostics -->
-                    <div class="card" style="grid-column: span 2;">
-                        <h2>📊 Raw Storage Partition Metrics</h2>
-                        <pre>$storageMetrics</pre>
+                    <div class="modal-footer">
+                        <button class="btn-action" onclick="closeFileEditor()">Cancel</button>
+                        <button id="editorSaveBtn" class="btn-action btn-edit" style="background:#2563eb;color:#ffffff;border:none;padding:6px 16px;" onclick="saveFileContent()">Save Changes</button>
                     </div>
-                </div>
-
-                <div class="grid">
-                    <!-- Hardware CPU & Memory statistics -->
-                    <div class="card">
-                        <h2>🧠 CPU Stat Core Summary</h2>
-                        <pre>$cpuInfo</pre>
-                    </div>
-                    <div class="card">
-                        <h2>💾 RAM (Memory Footprint)</h2>
-                        <pre>$ramInfo</pre>
-                    </div>
-                </div>
-
-                <!-- Process Monitoring and Emergency management -->
-                <div class="grid">
-                    <div class="card" style="grid-column: span 2;">
-                        <h2>🏁 Running Host Processes (ps list)</h2>
-                        <div style="max-height: 300px; overflow-y: auto; background: #030712; border: 1px solid #1F2937; border-radius: 8px;">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Raw System Output Line</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    $procRowsHtml
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Service Actions -->
-                <div class="card" style="border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05);">
-                    <h2 style="color: #EF4444;">⚠️ Core Operational Safeguards</h2>
-                    <p style="font-size: 14px; color: #FCA5A5; margin-top:0; margin-bottom: 20px;">
-                        Restarting the service daemon will detach raw listening sockets and immediately initialize a clean listener.
-                    </p>
-                    <form method="get" action="/admin">
-                        <input type="hidden" name="action" value="restart">
-                        <button type="submit" class="btn btn-danger" onclick="return confirm('Confirm complete server daemon socket cycle?');">
-                            Restart File Server Service
-                        </button>
-                    </form>
                 </div>
             </div>
         </body>
@@ -1980,135 +1501,10 @@ class HttpServer(
         """.trimIndent()
     }
 
-    private fun getParentPath(path: String): String {
-        val clean = if (path.endsWith("/")) path.dropLast(1) else path
-        val lastSlash = clean.lastIndexOf('/')
-        if (lastSlash <= 0) return "/"
-        return clean.substring(0, lastSlash)
-    }
-
-    private fun getBrowseItems(path: String): List<BrowseItem> {
-        val cleanPath = if (path.isBlank()) "/" else path
-        val result = mutableListOf<BrowseItem>()
-        
-        try {
-            if (RootAdvancedFeatures.isRootActive() && RootAdvancedFeatures.mIsDeviceRooted) {
-                val rootItems = RootAdvancedFeatures.listDirectoryDetails(cleanPath)
-                if (rootItems != null) {
-                    return rootItems
-                }
-            }
-            val dir = File(cleanPath)
-            if (RootAdvancedFeatures.fileExists(dir) && RootAdvancedFeatures.fileIsDirectory(dir)) {
-                val filesList = RootAdvancedFeatures.fileListFiles(dir)
-                for (f in filesList) {
-                    val isDir = RootAdvancedFeatures.fileIsDirectory(f)
-                    val sizeStr = if (isDir) "--" else {
-                        val len = RootAdvancedFeatures.fileLength(f)
-                        if (len < 1024) "$len B" else "${len / 1024} KB"
-                    }
-                    val user = try {
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                            java.nio.file.Files.getOwner(f.toPath()).name
-                        } else "root"
-                    } catch (e: Exception) {
-                        "root"
-                    }
-                    val perms = if (isDir) "drwxr-xr-x" else "-rw-r--r--"
-                    result.add(BrowseItem(f.name, isDir, sizeStr, user, perms))
-                }
-                result.sortWith(compareBy({ !it.isDir }, { it.name.lowercase() }))
-                return result
-            }
-        } catch (e: Exception) {
-            // fallback
-        }
-
-        val normalized = if (cleanPath.endsWith("/")) cleanPath else "$cleanPath/"
-        when (normalized) {
-            "/" -> {
-                result.add(BrowseItem("system", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("vendor", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("data", true, "--", "system", "drwxrwx--x"))
-                result.add(BrowseItem("storage", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("sdcard", true, "--", "root", "lrwxrwxrwx"))
-                result.add(BrowseItem("etc", true, "--", "root", "lrwxrwxrwx"))
-                result.add(BrowseItem("proc", true, "--", "root", "dr-xr-xr-x"))
-                result.add(BrowseItem("sys", true, "--", "root", "dr-xr-xr-x"))
-                result.add(BrowseItem("sbin", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("dev", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("init.rc", false, "27.8 KB", "root", "-rwxr-x---"))
-            }
-            "/system/" -> {
-                result.add(BrowseItem("app", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("bin", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("etc", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("fonts", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("framework", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("lib", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("lib64", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("priv-app", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("usr", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("build.prop", false, "4.4 KB", "root", "-rw-r--r--"))
-            }
-            "/system/bin/" -> {
-                result.add(BrowseItem("sh", false, "122.5 KB", "root", "-rwxr-xr-x"))
-                result.add(BrowseItem("su", false, "73.6 KB", "root", "-rwsr-sr-x"))
-                result.add(BrowseItem("ls", false, "52.8 KB", "root", "-rwxr-xr-x"))
-                result.add(BrowseItem("chmod", false, "41.1 KB", "root", "-rwxr-xr-x"))
-                result.add(BrowseItem("chown", false, "37.3 KB", "root", "-rwxr-xr-x"))
-                result.add(BrowseItem("ps", false, "48.1 KB", "root", "-rwxr-xr-x"))
-                result.add(BrowseItem("reboot", false, "17.8 KB", "root", "-rwxr-xr-x"))
-            }
-            "/system/etc/", "/etc/" -> {
-                result.add(BrowseItem("hosts", false, "54 B", "root", "-rw-r--r--"))
-                result.add(BrowseItem("resolv.conf", false, "42 B", "root", "-rw-r--r--"))
-                result.add(BrowseItem("gps.conf", false, "840 B", "root", "-rw-r-----"))
-                result.add(BrowseItem("security", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("permissions", true, "--", "root", "drwxr-xr-x"))
-            }
-            "/data/" -> {
-                result.add(BrowseItem("app", true, "--", "system", "drwxrwx--x"))
-                result.add(BrowseItem("data", true, "--", "system", "drwxrwx--x"))
-                result.add(BrowseItem("user", true, "--", "system", "drwxrwx--x"))
-                result.add(BrowseItem("system", true, "--", "system", "drwxrwx--x"))
-                result.add(BrowseItem("local", true, "--", "shell", "drwxr-x--x"))
-                result.add(BrowseItem("secure_key", false, "256 B", "system", "-rw-------"))
-            }
-            "/data/data/" -> {
-                result.add(BrowseItem("android", true, "--", "system", "drwxr-xr-x"))
-                result.add(BrowseItem("com.android.providers.settings", true, "--", "system", "drwxr-x--x"))
-                result.add(BrowseItem("com.android.chrome", true, "--", "u0_a102", "drwxr-x--x"))
-                result.add(BrowseItem("com.google.android.youtube", true, "--", "u0_a115", "drwxr-x--x"))
-                result.add(BrowseItem("com.google.android.gms", true, "--", "u0_a192", "drwxr-x--x"))
-                result.add(BrowseItem("com.aistudio.httpfileserverwebdav", true, "--", "u0_a321", "drwxr-xr-x"))
-                result.add(BrowseItem("com.aistudio.localgallery.mpywdj", true, "--", "u0_a299", "drwxr-x--x"))
-                result.add(BrowseItem("com.aistudio.localremote.rtcxpv", true, "--", "u0_a316", "drwxr-x--x"))
-            }
-            "/storage/" -> {
-                result.add(BrowseItem("emulated", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("self", true, "--", "root", "drwxr-xr-x"))
-            }
-            "/storage/emulated/" -> {
-                result.add(BrowseItem("0", true, "--", "root", "drwxr-xr-x"))
-            }
-            "/storage/emulated/0/" -> {
-                result.add(BrowseItem("Android", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("DCIM", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("Documents", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("Download", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("Movies", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("Music", true, "--", "root", "drwxr-xr-x"))
-                result.add(BrowseItem("Pictures", true, "--", "root", "drwxr-xr-x"))
-            }
-            else -> {
-                result.add(BrowseItem("lost+found", true, "--", "root", "drwx------"))
-                result.add(BrowseItem("config.cfg", false, "1.2 KB", "root", "-rw-r--r--"))
-                result.add(BrowseItem("sys_log.db", false, "24.0 KB", "root", "-rw-------"))
-            }
-        }
-        result.sortWith(compareBy({ !it.isDir }, { it.name.lowercase() }))
-        return result
+    private fun sendRedirect(os: OutputStream, location: String) {
+        val head = "HTTP/1.1 302 Found\r\nLocation: $location\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        os.write(head.toByteArray(Charsets.UTF_8))
+        os.flush()
     }
 }
 
