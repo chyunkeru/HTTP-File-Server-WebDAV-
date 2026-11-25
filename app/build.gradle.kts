@@ -3,6 +3,7 @@ plugins {
   alias(libs.plugins.kotlin.compose)
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
+  alias(libs.plugins.secrets)
 }
 
 android {
@@ -13,8 +14,8 @@ android {
     applicationId = "com.aistudio.httpfileserverwebdav"
     minSdk = 24
     targetSdk = 36
-    versionCode = 7
-    versionName = "1.2.4"
+    versionCode = 8
+    versionName = "1.3.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -27,12 +28,6 @@ android {
       keyAlias = "upload"
       keyPassword = System.getenv("KEY_PASSWORD")
     }
-    create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
-    }
   }
 
   buildTypes {
@@ -43,7 +38,6 @@ android {
       signingConfig = signingConfigs.getByName("release")
     }
     debug {
-      // Use default debug signingConfig
     }
   }
   compileOptions {
@@ -57,6 +51,15 @@ android {
   testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
+// Configure the Secrets Gradle Plugin to use .env and .env.example files
+// to match the convention used in Web projects.
+secrets {
+  propertiesFileName = ".env"
+  defaultPropertiesFileName = ".env.example"
+}
+
+// Some unused dependencies are commented out below instead of being removed.
+// This makes it easy to add them back in the future if needed.
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))

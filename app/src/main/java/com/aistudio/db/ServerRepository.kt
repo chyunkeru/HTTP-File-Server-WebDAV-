@@ -22,6 +22,10 @@ class ServerRepository(private val dao: ServerDao) {
         dao.deleteFolderById(id)
     }
 
+    suspend fun updateFolderEnabled(id: Long, isEnabled: Boolean) {
+        dao.updateFolderEnabled(id, isEnabled)
+    }
+
     suspend fun getFoldersCount(): Int {
         return dao.getFoldersCount()
     }

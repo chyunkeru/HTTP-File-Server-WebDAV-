@@ -87,17 +87,12 @@ object WebDavHandler {
         val cleanVirtualPath = encodePath(rawVirtualPath)
 
         // Self entry
-        val selfDisplayName = if (cleanVirtualPath.trim('/').equals(encodePath(folderName).trim('/'), ignoreCase = true) || parentDir.name.isEmpty()) {
-            folderName
-        } else {
-            parentDir.name
-        }
         sb.append("  <D:response>\n")
         sb.append("    <D:href>${cleanVirtualPath}</D:href>\n")
         sb.append("    <D:propstat>\n")
         sb.append("      <D:status>HTTP/1.1 200 OK</D:status>\n")
         sb.append("      <D:prop>\n")
-        sb.append("        <D:displayname>${escapeXml(selfDisplayName)}</D:displayname>\n")
+        sb.append("        <D:displayname>${escapeXml(parentDir.name.ifEmpty { folderName })}</D:displayname>\n")
         sb.append("        <D:resourcetype><D:collection/></D:resourcetype>\n")
         sb.append("        <D:getlastmodified>${formatDateRfc1123(parentDir.lastModified())}</D:getlastmodified>\n")
         sb.append("      </D:prop>\n")
@@ -106,62 +101,31 @@ object WebDavHandler {
 
         // Include immediate children if depth is "1"
         if (depth == "1" && RootAdvancedFeatures.fileExists(parentDir) && RootAdvancedFeatures.fileIsDirectory(parentDir)) {
-            val rootDetails = if (RootAdvancedFeatures.isRootActive() && RootAdvancedFeatures.mIsDeviceRooted) {
-                RootAdvancedFeatures.listDirectoryDetails(parentDir.absolutePath)
-            } else null
-
-            if (rootDetails != null) {
-                for (item in rootDetails) {
-                    val childEscapedName = java.net.URLEncoder.encode(item.name, "UTF-8").replace("+", "%20")
-                    val childVirtualPath = if (item.isDir) {
-                        "${cleanVirtualPath}${childEscapedName}/"
-                    } else {
-                        "${cleanVirtualPath}${childEscapedName}"
-                    }
-
-                    sb.append("  <D:response>\n")
-                    sb.append("    <D:href>${childVirtualPath}</D:href>\n")
-                    sb.append("    <D:propstat>\n")
-                    sb.append("      <D:status>HTTP/1.1 200 OK</D:status>\n")
-                    sb.append("      <D:prop>\n")
-                    sb.append("        <D:displayname>${escapeXml(item.name)}</D:displayname>\n")
-                    if (item.isDir) {
-                        sb.append("        <D:resourcetype><D:collection/></D:resourcetype>\n")
-                    } else {
-                        sb.append("        <D:resourcetype/>\n")
-                    }
-                    sb.append("        <D:getlastmodified>${formatDateRfc1123(parentDir.lastModified())}</D:getlastmodified>\n")
-                    sb.append("      </D:prop>\n")
-                    sb.append("    </D:propstat>\n")
-                    sb.append("  </D:response>\n")
+            val children = RootAdvancedFeatures.fileListFiles(parentDir).toTypedArray()
+            for (child in children) {
+                val childEscapedName = java.net.URLEncoder.encode(child.name, "UTF-8").replace("+", "%20")
+                val childVirtualPath = if (RootAdvancedFeatures.fileIsDirectory(child)) {
+                    "${cleanVirtualPath}${childEscapedName}/"
+                } else {
+                    "${cleanVirtualPath}${childEscapedName}"
                 }
-            } else {
-                val children = RootAdvancedFeatures.fileListFiles(parentDir).toTypedArray()
-                for (child in children) {
-                    val childEscapedName = java.net.URLEncoder.encode(child.name, "UTF-8").replace("+", "%20")
-                    val childVirtualPath = if (RootAdvancedFeatures.fileIsDirectory(child)) {
-                        "${cleanVirtualPath}${childEscapedName}/"
-                    } else {
-                        "${cleanVirtualPath}${childEscapedName}"
-                    }
 
-                    sb.append("  <D:response>\n")
-                    sb.append("    <D:href>${childVirtualPath}</D:href>\n")
-                    sb.append("    <D:propstat>\n")
-                    sb.append("      <D:status>HTTP/1.1 200 OK</D:status>\n")
-                    sb.append("      <D:prop>\n")
-                    sb.append("        <D:displayname>${escapeXml(child.name)}</D:displayname>\n")
-                    if (RootAdvancedFeatures.fileIsDirectory(child)) {
-                        sb.append("        <D:resourcetype><D:collection/></D:resourcetype>\n")
-                    } else {
-                        sb.append("        <D:resourcetype/>\n")
-                        sb.append("        <D:getcontentlength>${RootAdvancedFeatures.fileLength(child)}</D:getcontentlength>\n")
-                    }
-                    sb.append("        <D:getlastmodified>${formatDateRfc1123(child.lastModified())}</D:getlastmodified>\n")
-                    sb.append("      </D:prop>\n")
-                    sb.append("    </D:propstat>\n")
-                    sb.append("  </D:response>\n")
+                sb.append("  <D:response>\n")
+                sb.append("    <D:href>${childVirtualPath}</D:href>\n")
+                sb.append("    <D:propstat>\n")
+                sb.append("      <D:status>HTTP/1.1 200 OK</D:status>\n")
+                sb.append("      <D:prop>\n")
+                sb.append("        <D:displayname>${escapeXml(child.name)}</D:displayname>\n")
+                if (RootAdvancedFeatures.fileIsDirectory(child)) {
+                    sb.append("        <D:resourcetype><D:collection/></D:resourcetype>\n")
+                } else {
+                    sb.append("        <D:resourcetype/>\n")
+                    sb.append("        <D:getcontentlength>${RootAdvancedFeatures.fileLength(child)}</D:getcontentlength>\n")
                 }
+                sb.append("        <D:getlastmodified>${formatDateRfc1123(child.lastModified())}</D:getlastmodified>\n")
+                sb.append("      </D:prop>\n")
+                sb.append("    </D:propstat>\n")
+                sb.append("  </D:response>\n")
             }
         }
 

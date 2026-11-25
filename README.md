@@ -1,30 +1,45 @@
-# HTTP & WebDAV File Server for Android
+# HTTP & WebDAV File Server for Android (WebDAV++)
 
-A lightweight, high-performance HTTP and WebDAV server application designed for Android devices. Turn your Android phone or tablet into a network-attached storage (NAS) share, enabling seamless file management across Windows, macOS, Linux, and web browsers.
+A lightweight, high-performance HTTP and WebDAV server application designed for Android devices. Turn any Android phone or tablet into network-attached storage (NAS) and mount your internal storage and external SD cards directly in Windows File Explorer, macOS Finder, Linux file managers, or web browsers with zero accounts and zero cloud sign-in.
 
 ---
 
-## Key Features
+## ⚠️ Disclaimer & Safe Use Notice
 
-- **Standard WebDAV Support (Class 1 & 2):** Mount your device storage directly as a mapped network drive in Windows File Explorer (`X:\`), macOS Finder, or Linux file managers.
-- **Root Filesystem Access & Global Namespace Breakout:** Optional root mode leveraging Linux mount namespace isolation (`su -mm`) to view and modify true system partitions (`/data`, `/system`, `/vendor`) without zygote mount virtualization.
-- **In-Browser Web File Manager:**
+> [!CAUTION]
+> **PLEASE READ BEFORE USING:**
+> 1. **Protocol Scope:** This application is strictly an **HTTP & WebDAV** file server for Android. It does not provide or run an SMB/CIFS server daemon.
+> 2. **Client Helper Scripts:** The downloadable Windows batch scripts (`unlock-webdav.bat`, `mount-rclone.bat`, `disconnect-drive.bat`) and system registry optimizations are optional convenience tools provided **AS-IS**.
+> 3. **User Responsibility:** You download, execute scripts, and adjust your local operating system or network configuration **entirely at your own risk**. The authors and contributors assume no liability or responsibility for system settings modifications, network disruptions, file corruption, or data loss.
+
+---
+
+## ✨ Key Features
+
+- **Standard WebDAV Support (Class 1 & 2):** Mount your device storage directly as a mapped network drive in Windows File Explorer (`S:\`), macOS Finder, or Linux file managers.
+- **Automatic Storage & SD Card Detection:** Automatically discovers Internal Storage and external removable SD cards (`/storage/XXXX-XXXX`) on startup without manual path entry.
+- **Granular Folder Sharing:** Checkbox toggles on each configured drive (both Internal Storage and SD Card are enabled by default) with pixel-perfect visual alignment and clear status badges.
+- **Windows 1-Click Network Drive Hub (Web UI):**
+  - **⚡ Native Windows WebDAV (`Zero Install`):** 1-click batch script that unlocks the 4GB file transfer limit, eliminates the 10-second WPAD proxy freeze, and maps Drive `S:`.
+  - **🚀 Virtual Drive (`Local Cache`):** Offline-first virtual disk using WinFsp and Rclone with instant photo thumbnails, parallel chunk streaming, and automatic drive collision resolution.
+  - **🔌 Disconnect & Cleaner (`Reset Mounts`):** Interactive universal disconnect script to safely unmount any drive letter (`S:`, `Z:`, or `ALL`) and purge stale Windows Explorer ghost mounts.
+- **In-Browser Web File Manager & Code Editor:**
   - Responsive file browser accessible from any browser on your local network.
   - Real-time instant file search filter.
+  - In-browser code and config editor (Monaco Editor) with direct write-back via WebDAV PUT.
   - Live storage metrics and root status badges.
-  - In-browser code and text editor with direct write-back via WebDAV PUT.
-  - Multi-file drag-and-drop uploader with progress tracking.
+- **Root Filesystem Access & Simulator:**
+  - Optional root mode leveraging Linux mount namespace isolation (`su -mm`) to view and modify true system partitions (`/data`, `/system`, `/vendor`) without zygote mount virtualization.
 - **Native Android Dashboard:**
-  - Modern Material Design user interface.
+  - Modern Material Design 3 user interface with Jetpack Compose.
   - Dynamic QR code generation for quick client connections.
   - Real-time HTTP access log viewer with status code highlighting.
-  - Background foreground service with Wi-Fi lock and optional status bar notification.
-  - Customizable port, authentication credentials, and timeout configurations.
+  - Persistent foreground service with Wi-Fi lock and battery optimization handling.
   - Multi-language support (English and Traditional Chinese).
 
 ---
 
-## Screenshots
+## 📸 Screenshots
 
 <div align="center">
 
@@ -41,28 +56,24 @@ A lightweight, high-performance HTTP and WebDAV server application designed for 
 
 ---
 
-## Connecting as a Network Drive
+## 🖥️ Connecting as a Network Drive
 
-### Windows 11 / 10
-1. Open **File Explorer** and click **This PC**.
-2. Select **Map network drive** from the top menu.
-3. In the **Folder** field, enter:
-   ```
-   \\<DEVICE_IP>@<PORT>\DavWWWRoot
-   ```
-   *(Example: `\\192.168.1.50@8080\DavWWWRoot`)*
-4. If authentication is enabled in the app, check **Connect using different credentials** and enter your username and password.
+### Windows 11 / 10 (1-Click or Manual)
 
-> **Windows Registry Note for HTTP WebDAV:**
-> Windows WebClient requires a registry setting to connect over plain HTTP:
-> 1. Open `regedit` and navigate to:
->    `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\WebClient\Parameters`
-> 2. Change `BasicAuthLevel` to `2`.
-> 3. Restart the `WebClient` service via Command Prompt:
->    ```cmd
->    net stop WebClient
->    net start WebClient
->    ```
+#### Method A: 1-Click Web Hub (Recommended)
+1. Open `http://<DEVICE_IP>:<PORT>/` in your PC's web browser.
+2. Under the **Windows Network Drive Hub**, click **⚡ 4GB Unlock & Map S: (.bat)**.
+3. Run the downloaded script — it applies speed tweaks, restarts WebClient, and opens Drive `S:\` in File Explorer.
+
+#### Method B: Manual Mapping
+1. Open **File Explorer** and click **This PC** -> **Map network drive**.
+2. In the **Folder** field, enter:
+   ```
+   http://<DEVICE_IP>:<PORT>/
+   ```
+   *(or `\\<DEVICE_IP>@<PORT>\DavWWWRoot`)*
+
+---
 
 ### macOS Finder
 1. In **Finder**, press `Cmd + K` (Connect to Server).
@@ -70,7 +81,9 @@ A lightweight, high-performance HTTP and WebDAV server application designed for 
    ```
    http://<DEVICE_IP>:<PORT>/
    ```
-3. Click **Connect** and supply credentials if required.
+3. Click **Connect**.
+
+---
 
 ### Linux (GNOME Files / Dolphin)
 1. Open the file manager and select **Other Locations**.
@@ -78,43 +91,44 @@ A lightweight, high-performance HTTP and WebDAV server application designed for 
    ```
    dav://<DEVICE_IP>:<PORT>/
    ```
-3. Connect and authenticate.
+3. Click **Connect**.
 
 ---
 
-## Building from Source
+## 🛠️ Building & Testing
 
 ### Prerequisites
-- Android Studio Ladybug or newer
+- Android Studio Ladybug / Meerkat or later
 - JDK 17 or higher
-- Android SDK Platform 36 (Android 15/16)
-- Min SDK: Android 7.0 (API 24)
+- Android SDK Platform 36 (Min SDK: 24)
 
-### Command Line Build
+### Build Commands
 ```bash
-# Clone the repository
-git clone https://github.com/chyunkeru/HTTP-File-Server-WebDAV-.git
-cd HTTP-File-Server-WebDAV-
-
 # Assemble debug APK
-./gradlew assembleDebug
+./gradlew assembleDebug --quiet
 
 # Assemble release APK
-./gradlew assembleRelease
+./gradlew assembleRelease --quiet
 ```
-The output APK will be generated under `app/build/outputs/apk/`.
 
 ---
 
-## Technical Architecture
+## 📱 Android Deployment: Samsung Dual Messenger Protection
 
-- **HTTP & WebDAV Engine:** Lightweight socket server implementation supporting `PROPFIND`, `PROPPATCH`, `MKCOL`, `GET`, `HEAD`, `PUT`, `DELETE`, `MOVE`, `COPY`, `LOCK`, `UNLOCK`, and `OPTIONS`.
-- **Root Operations:** Low-level file system interactions utilize optimized single-pass shell commands (`ls -la -e` / `stat`) wrapped in `su -mm` to bypass Android process container boundaries.
-- **Database:** Android Jetpack Room for persistent server configuration and access logs.
-- **UI:** Jetpack Compose with Material 3 components.
+> [!IMPORTANT]
+> If testing or deploying to Samsung Galaxy devices (e.g., Galaxy Tab S9+, Tab S7) where **Samsung Dual Messenger** is active:
+> - **Always install targeting `--user 0`:**
+>   ```powershell
+>   adb -s <serial> install -r -d --user 0 "app/build/outputs/apk/debug/app-debug.apk"
+>   ```
+> - Never run `adb install` without `--user 0`, or Android will install to all profiles (including `UserInfo{95:DUAL_APP}`), causing unwanted duplicate icons with orange badges.
 
 ---
 
-## License
+## 📋 Changelog
+See [CHANGELOG.md](CHANGELOG.md) for full version history and release notes.
 
+---
+
+## 📄 License
 This project is licensed under the Apache License 2.0.

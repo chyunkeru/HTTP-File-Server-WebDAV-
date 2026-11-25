@@ -30,6 +30,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.google.zxing.BarcodeFormat
@@ -279,7 +281,12 @@ fun MainAppScreen(viewModel: ServerViewModel) {
         ) {
             when (selectedTab) {
                 0 -> DashboardScreen(viewModel, isRunning, serverUrl, folders, hasStoragePerm, requestStoragePermission)
-                1 -> SharesScreen(folders, onAddClick = { showAddFolderDialog = true }, onDeleteClick = { id -> viewModel.deleteFolderShare(id) })
+                1 -> SharesScreen(
+                    folders = folders,
+                    onAddClick = { showAddFolderDialog = true },
+                    onDeleteClick = { id -> viewModel.deleteFolderShare(id) },
+                    onToggleEnabled = { id, enabled -> viewModel.toggleFolderEnabled(id, enabled) }
+                )
                 2 -> LogsScreen(logs, onClear = { viewModel.clearLogHistory() })
                 3 -> SettingsScreen(viewModel, onRerunWizard = {
                     sharedPrefs.edit().remove("wizard_saved_step").apply()
@@ -442,6 +449,7 @@ fun DashboardScreen(
                                 QrCodeCard(serverUrl, context)
                             }
                             AccessDetailsCard(hostIp, folders.size)
+                            WindowsDriveToolsCard(serverUrl, hostIp, com.aistudio.server.ServerManager.port)
                         }
                     }
                 }
@@ -477,6 +485,10 @@ fun DashboardScreen(
 
                 item {
                     AccessDetailsCard(hostIp, folders.size)
+                }
+
+                item {
+                    WindowsDriveToolsCard(serverUrl, hostIp, com.aistudio.server.ServerManager.port)
                 }
 
                 item {
@@ -893,6 +905,14 @@ fun FoldersListCard(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     folders.forEach { folder ->
+                        val isSdCard = folder.name.contains("SD", ignoreCase = true) ||
+                                (folder.absolutePath.startsWith("/storage/") && !folder.absolutePath.startsWith("/storage/emulated"))
+                        val dashIcon = when {
+                            isSdCard -> Icons.Default.SdCard
+                            folder.isDefault -> Icons.Default.Storage
+                            else -> Icons.Default.FolderOpen
+                        }
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -902,9 +922,9 @@ fun FoldersListCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.FolderOpen,
+                                imageVector = dashIcon,
                                 contentDescription = "Folder",
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                tint = if (folder.isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                                 modifier = Modifier.size(20.dp)
                              )
                             Spacer(modifier = Modifier.width(10.dp))
@@ -917,8 +937,23 @@ fun FoldersListCard(
                                         text = folder.name,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 13.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = if (folder.isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline
                                     )
+                                    Box(
+                                        modifier = Modifier
+                                            .background(
+                                                color = if (folder.isEnabled) Color(0xFFE8F5E9) else Color(0xFFF3F4F6),
+                                                shape = RoundedCornerShape(4.dp)
+                                            )
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = if (folder.isEnabled) "Shared" else "Disabled",
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = if (folder.isEnabled) Color(0xFF2E7D32) else Color(0xFF6B7280)
+                                        )
+                                    }
                                     Box(
                                         modifier = Modifier
                                             .background(
@@ -989,6 +1024,184 @@ fun AccessDetailsCard(
                 tintValue = if (com.aistudio.server.ServerManager.isWebdavEnabled) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+@Composable
+fun WindowsDriveToolsCard(
+    serverUrl: String,
+    hostIp: String,
+    port: Int
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var showGuideDialog by remember { mutableStateOf(false) }
+
+    val unlockCmd = "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters\" /v FileSizeLimitInBytes /t REG_DWORD /d 0xffffffff /f & reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters\" /v BasicAuthLevel /t REG_DWORD /d 2 /f & net stop WebClient & net start WebClient & net use S: $serverUrl /persistent:yes"
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(24.dp)
+            ),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Computer,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "WINDOWS 1-CLICK TOOLS",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                TextButton(
+                    onClick = { showGuideDialog = true },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text("Setup Guide", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "Mount as a Windows Drive letter (S:) without accounts or cloud sign-in.",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 16.sp
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("WebDAV Unlock Command", unlockCmd))
+                        Toast.makeText(context, "Copied 4GB Unlock & Mount Command!", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Copy 4GB Cmd", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, "Windows 1-Click Mount Script")
+                            putExtra(Intent.EXTRA_TEXT, "Download Windows 1-Click Scripts directly from tablet:\n• Native WebDAV (4GB Unlock & Map S:): $serverUrl/tools/unlock-webdav.bat\n• Virtual Drive (WinFsp + Rclone): $serverUrl/tools/mount-rclone.bat\n• Universal Disconnect: $serverUrl/tools/disconnect-drive.bat\n\nDisclaimer: This app is an HTTP & WebDAV server. Client helper scripts are provided AS-IS at user's own risk.\n\nDirect Admin CMD:\n$unlockCmd")
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Share Windows Setup Scripts"))
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Share Scripts", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "⚠️ Disclaimer: HTTP/WebDAV server utility. Helper scripts & registry tweaks are optional and executed at user's own risk.",
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                lineHeight = 13.sp
+            )
+        }
+    }
+
+    if (showGuideDialog) {
+        AlertDialog(
+            onDismissRequest = { showGuideDialog = false },
+            title = {
+                Text("Windows Network Drive Guide", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Native WebDAV
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("⚡ Native Windows WebDAV (Built-in)", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Built into Windows Explorer. Open $serverUrl on PC and run '4GB Unlock & Map S:'. Removes the 50MB lock & 10s proxy freeze.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+
+                    // Virtual Drive
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("🚀 Virtual Drive (WinFsp + Rclone)", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.secondary)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Uses WinFsp driver + Rclone. 100% offline, zero sign-up. Caches thumbnails locally and parallel streams large files. Auto-picks free drive letter.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+
+                    // Disconnect
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("🔌 Universal Disconnect & Cleaner", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.error)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Unmount any drive letter (S:, Z:, or ALL) and purge stale Explorer ghost connections.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+
+                    // Disclaimer
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("⚠️ Disclaimer & Terms of Use", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("This software is strictly an HTTP & WebDAV file server. Helper scripts and system tweaks are provided AS-IS. You download, execute scripts, and modify system settings at your own risk. The author assumes no responsibility for system changes or data loss.", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showGuideDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
     }
 }
 
@@ -1078,7 +1291,8 @@ fun DetailItemRow(
 fun SharesScreen(
     folders: List<SharedFolder>,
     onAddClick: () -> Unit,
-    onDeleteClick: (Long) -> Unit
+    onDeleteClick: (Long) -> Unit,
+    onToggleEnabled: (Long, Boolean) -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         if (folders.isEmpty()) {
@@ -1128,10 +1342,20 @@ fun SharesScreen(
                 }
 
                 items(folders) { folder ->
+                    val isSdCard = folder.name.contains("SD", ignoreCase = true) ||
+                            (folder.absolutePath.startsWith("/storage/") && !folder.absolutePath.startsWith("/storage/emulated"))
+                    val folderIcon = when {
+                        isSdCard -> Icons.Default.SdCard
+                        folder.isDefault -> Icons.Default.Storage
+                        else -> Icons.Default.FolderOpen
+                    }
+
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (folder.isEnabled) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        )
                     ) {
                         Row(
                             modifier = Modifier
@@ -1140,18 +1364,18 @@ fun SharesScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = if (folder.isDefault) Icons.Default.HomeWork else Icons.Default.FolderShared,
+                                imageVector = folderIcon,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = if (folder.isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                                 modifier = Modifier.size(36.dp)
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(14.dp))
                             Column(modifier = Modifier.weight(1F)) {
                                 Text(
                                     text = folder.name,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = if (folder.isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                 )
                                 Text(
                                     text = folder.absolutePath,
@@ -1161,7 +1385,28 @@ fun SharesScreen(
                                     maxLines = 2
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Status Badge (Shared vs Disabled)
+                                    val statusColor = if (folder.isEnabled) Color(0xFF10B981) else Color(0xFF6B7280)
+                                    val statusBg = if (folder.isEnabled) Color(0xFFECFDF5) else Color(0xFFF3F4F6)
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(statusBg)
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = if (folder.isEnabled) "Shared" else "Disabled",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = statusColor
+                                        )
+                                    }
+
+                                    // RW Badge
                                     val badgeColor = if (folder.isWritable) Color(0xFF10B981) else Color(0xFFEF4444)
                                     val badgeBg = if (folder.isWritable) Color(0xFFECFDF5) else Color(0xFFFEF2F2)
                                     Box(
@@ -1194,18 +1439,27 @@ fun SharesScreen(
                                     }
                                 }
                             }
-                            // Delete button (cannot delete the default system sandbox file directory)
-                            if (!folder.isDefault) {
-                                IconButton(
-                                    onClick = { onDeleteClick(folder.id) },
-                                    modifier = Modifier.testTag("delete_share_button_${folder.id}")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = stringResource(R.string.shares_btn_delete_desc),
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
-                                }
+
+                            // Checkbox to toggle sharing on/off
+                            Checkbox(
+                                checked = folder.isEnabled,
+                                onCheckedChange = { checked ->
+                                    onToggleEnabled(folder.id, checked)
+                                },
+                                modifier = Modifier.testTag("checkbox_share_${folder.id}")
+                            )
+
+                            // Delete button (greyed out & disabled for default Internal Storage)
+                            IconButton(
+                                onClick = { if (!folder.isDefault) onDeleteClick(folder.id) },
+                                enabled = !folder.isDefault,
+                                modifier = Modifier.testTag("delete_share_button_${folder.id}")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = stringResource(R.string.shares_btn_delete_desc),
+                                    tint = if (!folder.isDefault) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+                                )
                             }
                         }
                     }
@@ -1434,7 +1688,6 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
     val initialUsername by viewModel.usernameState.collectAsState()
     val initialPassword by viewModel.passwordState.collectAsState()
     val initialNotification by viewModel.notificationState.collectAsState()
-    val initialHideStatusBar by viewModel.hideStatusBarState.collectAsState()
     val initialTimeout by viewModel.timeoutState.collectAsState()
     val initialRootSimulation by viewModel.rootSimulationState.collectAsState()
 
@@ -1444,12 +1697,11 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
     var usernameInput by remember { mutableStateOf(initialUsername) }
     var passwordInput by remember { mutableStateOf(initialPassword) }
     var notificationToggle by remember { mutableStateOf(initialNotification) }
-    var hideStatusBarToggle by remember { mutableStateOf(initialHideStatusBar) }
     var timeoutInput by remember { mutableStateOf(initialTimeout) }
     var rootSimulationToggle by remember { mutableStateOf(initialRootSimulation) }
     val themeMode by viewModel.themeState.collectAsState()
 
-    val triggerImmediateSave = { currentPort: String, currentWebdav: Boolean, currentAnonymous: Boolean, currentUser: String, currentPass: String, currentNotification: Boolean, currentTimeout: String, currentRootSimulation: Boolean, currentHideStatusBar: Boolean ->
+    val triggerImmediateSave = { currentPort: String, currentWebdav: Boolean, currentAnonymous: Boolean, currentUser: String, currentPass: String, currentNotification: Boolean, currentTimeout: String, currentRootSimulation: Boolean ->
         val portNum = currentPort.toIntOrNull()
         val timeoutNum = currentTimeout.toIntOrNull()
         
@@ -1464,8 +1716,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
             pass = currentPass,
             notificationEnabled = currentNotification,
             timeoutMinutes = validTimeout,
-            rootSimulation = currentRootSimulation,
-            hideStatusBar = currentHideStatusBar
+            rootSimulation = currentRootSimulation
         )
     }
 
@@ -1588,7 +1839,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                         value = portInput,
                         onValueChange = { 
                             portInput = it
-                            triggerImmediateSave(it, webdavToggle, anonymousToggle, usernameInput, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle, hideStatusBarToggle)
+                            triggerImmediateSave(it, webdavToggle, anonymousToggle, usernameInput, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle)
                         },
                         label = { Text(stringResource(R.string.settings_port_label)) },
                         placeholder = { Text(stringResource(R.string.settings_port_placeholder)) },
@@ -1615,7 +1866,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                             checked = webdavToggle,
                             onCheckedChange = { 
                                 webdavToggle = it
-                                triggerImmediateSave(portInput, it, anonymousToggle, usernameInput, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle, hideStatusBarToggle)
+                                triggerImmediateSave(portInput, it, anonymousToggle, usernameInput, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle)
                             },
                             modifier = Modifier.testTag("settings_webdav_switch")
                         )
@@ -1650,41 +1901,10 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                                         settingsPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                                     }
                                 }
-                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, passwordInput, isChecked, timeoutInput, rootSimulationToggle, hideStatusBarToggle)
+                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, passwordInput, isChecked, timeoutInput, rootSimulationToggle)
                             },
                             modifier = Modifier.testTag("settings_notification_switch")
                         )
-                    }
-
-                    if (notificationToggle) {
-                        Divider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1F)) {
-                                Text(text = stringResource(R.string.settings_hide_status_bar_label), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                Text(
-                                    text = if (hideStatusBarToggle) {
-                                        stringResource(R.string.settings_hide_status_bar_active_desc)
-                                    } else {
-                                        stringResource(R.string.settings_hide_status_bar_inactive_desc)
-                                    },
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = hideStatusBarToggle,
-                                onCheckedChange = { isChecked ->
-                                    hideStatusBarToggle = isChecked
-                                    triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle, isChecked)
-                                },
-                                modifier = Modifier.testTag("settings_hide_status_bar_switch")
-                            )
-                        }
                     }
 
                     Divider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 12.dp))
@@ -1773,7 +1993,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                             value = timeoutInput,
                             onValueChange = { 
                                 timeoutInput = it
-                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, passwordInput, notificationToggle, it, rootSimulationToggle, hideStatusBarToggle)
+                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, passwordInput, notificationToggle, it, rootSimulationToggle)
                             },
                             label = { Text(stringResource(R.string.settings_timeout_label)) },
                             placeholder = { Text(stringResource(R.string.settings_timeout_placeholder)) },
@@ -1818,7 +2038,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                             checked = anonymousToggle,
                             onCheckedChange = { 
                                 anonymousToggle = it
-                                triggerImmediateSave(portInput, webdavToggle, it, usernameInput, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle, hideStatusBarToggle)
+                                triggerImmediateSave(portInput, webdavToggle, it, usernameInput, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle)
                             },
                             modifier = Modifier.testTag("settings_anonymous_switch")
                         )
@@ -1831,7 +2051,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                             value = usernameInput,
                             onValueChange = { 
                                 usernameInput = it
-                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, it, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle, hideStatusBarToggle)
+                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, it, passwordInput, notificationToggle, timeoutInput, rootSimulationToggle)
                             },
                             label = { Text(stringResource(R.string.settings_username_label)) },
                             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
@@ -1847,7 +2067,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                             value = passwordInput,
                             onValueChange = { 
                                 passwordInput = it
-                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, it, notificationToggle, timeoutInput, rootSimulationToggle, hideStatusBarToggle)
+                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, it, notificationToggle, timeoutInput, rootSimulationToggle)
                             },
                             label = { Text(stringResource(R.string.settings_password_label)) },
                             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
@@ -1895,7 +2115,7 @@ fun SettingsScreen(viewModel: ServerViewModel, onRerunWizard: () -> Unit = {}) {
                                 if (it) {
                                     com.aistudio.server.RootAdvancedFeatures.forceRootCheckAsync()
                                 }
-                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, passwordInput, notificationToggle, timeoutInput, it, hideStatusBarToggle)
+                                triggerImmediateSave(portInput, webdavToggle, anonymousToggle, usernameInput, passwordInput, notificationToggle, timeoutInput, it)
                             },
                             modifier = Modifier.testTag("settings_root_simulation_switch")
                         )
@@ -2091,7 +2311,7 @@ fun AddFolderDialog(
                             modifier = Modifier.testTag("dialog_browse_folder_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.FolderShared,
+                                imageVector = Icons.Default.FolderOpen,
                                 contentDescription = stringResource(R.string.add_folder_dialog_browse_desc)
                             )
                         }
@@ -2199,6 +2419,7 @@ fun FolderPickerDialog(
     onSelect: (String) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val removableStorage = remember { com.aistudio.server.ServerManager.detectRemovableStorage(context) }
     var currentDir by remember { mutableStateOf(File("/storage/emulated/0")) }
     val directories = remember(currentDir) {
         try {
@@ -2246,6 +2467,13 @@ fun FolderPickerDialog(
                         isSelected = currentDir.absolutePath.startsWith("/storage/emulated/0"),
                         onClick = { currentDir = File("/storage/emulated/0") }
                     )
+                    for ((label, rPath) in removableStorage) {
+                        QuickPathChip(
+                            label = label,
+                            isSelected = currentDir.absolutePath.startsWith(rPath),
+                            onClick = { currentDir = File(rPath) }
+                        )
+                    }
                     QuickPathChip(
                         label = "App /data",
                         isSelected = currentDir.absolutePath.startsWith(context.dataDir.absolutePath),
@@ -2254,7 +2482,7 @@ fun FolderPickerDialog(
                     if (com.aistudio.server.RootAdvancedFeatures.isRootActive()) {
                         QuickPathChip(
                             label = "Root /",
-                            isSelected = currentDir.absolutePath == "/" || (!currentDir.absolutePath.startsWith("/storage/emulated/0") && !currentDir.absolutePath.startsWith(context.dataDir.absolutePath)),
+                            isSelected = currentDir.absolutePath == "/" || (!currentDir.absolutePath.startsWith("/storage/emulated/0") && !removableStorage.any { currentDir.absolutePath.startsWith(it.second) } && !currentDir.absolutePath.startsWith(context.dataDir.absolutePath)),
                             onClick = { currentDir = File("/") }
                         )
                     }
@@ -2299,6 +2527,7 @@ fun FolderPickerDialog(
                         } else {
                             currentDir.absolutePath == "/storage/emulated/0" || 
                             currentDir.absolutePath == context.dataDir.absolutePath ||
+                            removableStorage.any { currentDir.absolutePath == it.second } ||
                             currentDir.absolutePath == "/"
                         }
                         if (parentFile != null && !isAtBase) {

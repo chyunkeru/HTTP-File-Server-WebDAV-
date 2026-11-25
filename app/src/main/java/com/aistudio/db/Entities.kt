@@ -21,5 +21,6 @@ data class SharedFolder(
     val name: String,
     val absolutePath: String,
     val isWritable: Boolean = true,
-    val isDefault: Boolean = false
+    val isDefault: Boolean = false,
+    val isEnabled: Boolean = true
 )

@@ -28,6 +28,9 @@ interface ServerDao {
     @Query("DELETE FROM shared_folders WHERE id = :id")
     suspend fun deleteFolderById(id: Long)
 
+    @Query("UPDATE shared_folders SET isEnabled = :isEnabled WHERE id = :id")
+    suspend fun updateFolderEnabled(id: Long, isEnabled: Boolean)
+
     @Query("SELECT COUNT(*) FROM shared_folders")
     suspend fun getFoldersCount(): Int
 }

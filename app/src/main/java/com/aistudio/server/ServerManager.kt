@@ -32,7 +32,6 @@ object ServerManager {
     var authUsername = "admin"
     var authPassword = "admin"
     var isNotificationEnabled = false
-    var isHideStatusBarIcon = false
     var idleTimeoutMinutes = 120
     var themePreference = "system"
 
@@ -66,7 +65,6 @@ object ServerManager {
             prefs.edit().putString("auth_password", "admin").apply()
         }
         isNotificationEnabled = prefs.getBoolean("is_notification_enabled", false)
-        isHideStatusBarIcon = prefs.getBoolean("is_hide_status_bar_icon", false)
         idleTimeoutMinutes = prefs.getInt("idle_timeout_minutes", 120)
         themePreference = prefs.getString("theme_preference", "system") ?: "system"
 
@@ -82,12 +80,14 @@ object ServerManager {
             }
         }
 
-        // Seed default sandbox direct public folder if none exists
+        // Seed default sandbox direct public folder and auto-detect removable SD cards
         scope.launch {
             repository?.let { repo ->
-                if (repo.getFoldersCount() == 0) {
-                    val defaultDir = File("/storage/emulated/0")
-                    
+                val existingFolders = repo.getAllFoldersSync()
+                val existingPaths = existingFolders.map { it.absolutePath }.toSet()
+
+                val defaultDir = File("/storage/emulated/0")
+                if (!existingPaths.contains(defaultDir.absolutePath)) {
                     // Create default index readme document if possible and storage permission permits writing
                     val isStorageWritable = try {
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
@@ -137,35 +137,108 @@ object ServerManager {
                         name = "Internal Storage",
                         absolutePath = defaultDir.absolutePath,
                         isWritable = true,
-                        isDefault = true
+                        isDefault = true,
+                        isEnabled = true
                     ))
                 }
-                ensureRootShareIfDeviceRooted()
+
+                // Automatically detect and register SD Card(s) if detected
+                val removableVolumes = detectRemovableStorage(context)
+                var sdCardIndex = 1
+                for ((desc, path) in removableVolumes) {
+                    if (!existingPaths.contains(path)) {
+                        val folderName = if (removableVolumes.size == 1) {
+                            if (desc.contains("SD", ignoreCase = true)) desc else "SD Card"
+                        } else {
+                            "SD Card $sdCardIndex"
+                        }
+                        repo.insertFolder(SharedFolder(
+                            name = folderName,
+                            absolutePath = path,
+                            isWritable = true,
+                            isDefault = false,
+                            isEnabled = true
+                        ))
+                        sdCardIndex++
+                    }
+                }
             }
         }
     }
 
-    fun ensureRootShareIfDeviceRooted() {
-        val repo = repository ?: return
-        scope.launch(Dispatchers.IO) {
-            try {
-                if (RootAdvancedFeatures.isRootActive() && RootAdvancedFeatures.mIsDeviceRooted) {
-                    val existing = repo.getAllFoldersSync()
-                    val hasRoot = existing.any { it.absolutePath == "/" }
-                    if (!hasRoot) {
-                        repo.insertFolder(SharedFolder(
-                            name = "Root",
-                            absolutePath = "/",
-                            isWritable = true,
-                            isDefault = false
-                        ))
-                        Log.i(TAG, "Auto-created 'Root' share for rooted device")
+    fun detectRemovableStorage(context: Context): List<Pair<String, String>> {
+        val detected = mutableListOf<Pair<String, String>>()
+        val seenPaths = mutableSetOf<String>()
+
+        // 1. StorageManager API (official)
+        try {
+            val sm = context.getSystemService(Context.STORAGE_SERVICE) as? android.os.storage.StorageManager
+            if (sm != null) {
+                for (volume in sm.storageVolumes) {
+                    if (volume.isRemovable) {
+                        val state = volume.state
+                        if (state == android.os.Environment.MEDIA_MOUNTED || state == android.os.Environment.MEDIA_MOUNTED_READ_ONLY) {
+                            val dirPath = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                                volume.directory?.absolutePath
+                            } else {
+                                try {
+                                    val getPath = volume.javaClass.getMethod("getPath")
+                                    getPath.invoke(volume) as? String
+                                } catch (_: Exception) { null }
+                            }
+                            if (dirPath != null && !seenPaths.contains(dirPath)) {
+                                val desc = volume.getDescription(context)
+                                val label = if (!desc.isNullOrBlank()) desc else "SD Card"
+                                seenPaths.add(dirPath)
+                                detected.add(label to dirPath)
+                            }
+                        }
                     }
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error checking root share: ${e.message}")
             }
+        } catch (e: Exception) {
+            Log.d(TAG, "StorageManager detection: ${e.message}")
         }
+
+        // 2. getExternalFilesDirs check
+        try {
+            val extDirs = context.getExternalFilesDirs(null)
+            for (dir in extDirs) {
+                if (dir != null && android.os.Environment.isExternalStorageRemovable(dir)) {
+                    val full = dir.absolutePath
+                    val root = full.substringBefore("/Android/data")
+                    if (root.isNotEmpty() && !seenPaths.contains(root)) {
+                        seenPaths.add(root)
+                        detected.add("SD Card" to root)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "getExternalFilesDirs detection: ${e.message}")
+        }
+
+        // 3. Direct /storage inspection fallback
+        try {
+            val storageDir = File("/storage")
+            if (storageDir.exists() && storageDir.isDirectory) {
+                val subFiles = storageDir.listFiles()
+                if (subFiles != null) {
+                    for (sub in subFiles) {
+                        val name = sub.name
+                        if (name != "emulated" && name != "self" && name != "knox" && !name.startsWith(".")) {
+                            if (sub.isDirectory && !seenPaths.contains(sub.absolutePath)) {
+                                seenPaths.add(sub.absolutePath)
+                                detected.add("SD Card" to sub.absolutePath)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Direct /storage detection: ${e.message}")
+        }
+
+        return detected
     }
 
     fun saveSettings(context: Context) {
@@ -177,7 +250,6 @@ object ServerManager {
             .putString("auth_username", authUsername)
             .putString("auth_password", authPassword)
             .putBoolean("is_notification_enabled", isNotificationEnabled)
-            .putBoolean("is_hide_status_bar_icon", isHideStatusBarIcon)
             .putInt("idle_timeout_minutes", idleTimeoutMinutes)
             .putBoolean("is_root_simulation_enabled", RootAdvancedFeatures.isRootSimulationEnabled)
             .putString("theme_preference", themePreference)
@@ -238,14 +310,13 @@ object ServerManager {
                 }
             },
             getFoldersProvider = {
-                repository?.getAllFoldersSync() ?: emptyList()
+                repository?.getAllFoldersSync()?.filter { it.isEnabled } ?: emptyList()
             }
         )
 
         activeServer?.start()
         _isRunning.value = true
         Log.d(TAG, "Server running at: $url")
-        ensureRootShareIfDeviceRooted()
 
         // Start inactivity monitor (configurable disconnect check)
         lastActiveTime = System.currentTimeMillis()

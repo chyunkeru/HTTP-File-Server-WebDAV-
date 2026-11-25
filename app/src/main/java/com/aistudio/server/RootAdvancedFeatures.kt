@@ -22,13 +22,6 @@ object RootAdvancedFeatures {
     @Volatile
     var mIsDeviceRooted: Boolean = false
 
-    @Volatile
-    var mSupportsMountMaster: Boolean = false
-
-    fun getSuCmd(): Array<String> {
-        return if (mSupportsMountMaster) arrayOf("su", "-mm") else arrayOf("su")
-    }
-
     // Simulation tag to allow non-rooted environments to test features safely
     @Volatile
     var isRootSimulationEnabled = false
@@ -56,7 +49,6 @@ object RootAdvancedFeatures {
             if (mIsDeviceRooted) {
                 isRootSimulationEnabled = false
                 Log.i(TAG, "SUCCESS: Root/Administrator privileges DETECTED. Initializing root systems engine.")
-                ServerManager.ensureRootShareIfDeviceRooted()
             } else {
                 Log.w(TAG, "WARNING: Standard privileges detected. Advanced root subsystem will operate in standard container space.")
             }
@@ -72,7 +64,7 @@ object RootAdvancedFeatures {
         if (!mIsDeviceRooted) return false
         var process: java.lang.Process? = null
         try {
-            process = Runtime.getRuntime().exec(getSuCmd())
+            process = Runtime.getRuntime().exec("su")
             val os = process.outputStream
             val script = buildString {
                 // Grant all files / storage access
@@ -125,41 +117,25 @@ object RootAdvancedFeatures {
         // Check 1: UID check
         try {
             if (Process.myUid() == 0) {
-                mSupportsMountMaster = true
                 return true
             }
         } catch (e: Exception) {
             // Unhandled process check
         }
 
-        // Check 2: Test su -mm (Mount Master / Global Namespace)
+        // Check 2: Execute safe, read-only "id" verification via stdin
         var process: java.lang.Process? = null
         try {
-            process = Runtime.getRuntime().exec(arrayOf("su", "-mm", "-c", "id"))
-            val reader = BufferedReader(InputStreamReader(process.inputStream, Charsets.UTF_8))
-            val line = reader.readLine()
-            if (line != null && (line.contains("uid=0") || line.contains("root"))) {
-                mSupportsMountMaster = true
-                return true
-            }
-        } catch (e: Exception) {
-            // su -mm not supported or access denied
-        } finally {
-            process?.destroy()
-        }
-
-        // Check 2b: Standard su check via stdin
-        try {
-            process = Runtime.getRuntime().exec(getSuCmd())
+            process = Runtime.getRuntime().exec("su")
             val os = process.outputStream
-            os.write("id\nexit\n".toByteArray(Charsets.UTF_8))
+            os.write("id\n".toByteArray(Charsets.UTF_8))
+            os.write("exit\n".toByteArray(Charsets.UTF_8))
             os.flush()
             os.close()
 
             val reader = BufferedReader(InputStreamReader(process.inputStream, Charsets.UTF_8))
             val line = reader.readLine()
             if (line != null && (line.contains("uid=0") || line.contains("root"))) {
-                mSupportsMountMaster = false
                 return true
             }
         } catch (e: Exception) {
@@ -168,19 +144,41 @@ object RootAdvancedFeatures {
             process?.destroy()
         }
 
-        // Check 2c: Fallback to su -c id
+        // Check 2b: Fallback to su -c id
         try {
             process = Runtime.getRuntime().exec(arrayOf("su", "-c", "id"))
             val reader = BufferedReader(InputStreamReader(process.inputStream, Charsets.UTF_8))
             val line = reader.readLine()
             if (line != null && (line.contains("uid=0") || line.contains("root"))) {
-                mSupportsMountMaster = false
                 return true
             }
         } catch (e: Exception) {
             // su not found or access denied
         } finally {
             process?.destroy()
+        }
+
+        // Check 3: Check typical SU binary paths for active rooted environments
+        val paths = arrayOf(
+            "/system/app/Superuser.apk",
+            "/sbin/su",
+            "/system/bin/su",
+            "/system/xbin/su",
+            "/data/local/xbin/su",
+            "/data/local/bin/su",
+            "/system/sd/xbin/su",
+            "/system/bin/failsafe/su",
+            "/data/local/su",
+            "/su/bin/su"
+        )
+        for (path in paths) {
+            if (File(path).exists()) return true
+        }
+
+        // Check 4: Platform check
+        val buildTags = android.os.Build.TAGS
+        if (buildTags != null && buildTags.contains("test-keys")) {
+            return true
         }
 
         return false
@@ -196,7 +194,7 @@ object RootAdvancedFeatures {
         val errSb = StringBuilder()
         try {
             if (mIsDeviceRooted) {
-                process = Runtime.getRuntime().exec(getSuCmd())
+                process = Runtime.getRuntime().exec("su")
                 val os = process.outputStream
                 val joined = args.joinToString(" ") { 
                     "'" + it.replace("'", "'\\''") + "'"
@@ -393,69 +391,12 @@ object RootAdvancedFeatures {
         }
     }
 
-    fun listDirectoryDetails(path: String): List<BrowseItem>? {
-        if (!mIsDeviceRooted) return null
-        val cleanPath = if (path.isBlank()) "/" else path
-        val escapedPath = cleanPath.replace("'", "'\\''")
-        val output = executeCommand(arrayOf("ls", "-laF", escapedPath))
-        if (output.isBlank() || output.startsWith("Error:") || output.startsWith("ls:")) {
-            return null
-        }
-        val items = mutableListOf<BrowseItem>()
-        for (line in output.lines()) {
-            val trimmed = line.trim()
-            if (trimmed.isEmpty() || trimmed.startsWith("total ")) continue
-            val parts = trimmed.split(Regex("\\s+"), 8)
-            if (parts.size < 8) continue
-            val perms = parts[0]
-            val owner = parts[2]
-            val rawSize = parts[4]
-            val rawName = parts[7]
-
-            val name = rawName.split(" -> ")[0].trim()
-            val isDir = perms.startsWith("d") || name.endsWith("/")
-            val cleanName = name.trimEnd('/', '@', '*')
-
-            if (cleanName == "." || cleanName == "..") continue
-
-            val len = rawSize.toLongOrNull() ?: 0L
-            val sizeStr = if (isDir) "--" else {
-                if (len < 1024) "$len B" else "${len / 1024} KB"
-            }
-            items.add(BrowseItem(cleanName, isDir, sizeStr, owner, perms))
-        }
-        items.sortWith(compareBy({ !it.isDir }, { it.name.lowercase() }))
-        return items
-    }
-
-    fun readFileContent(path: String, maxBytes: Int = 50000): String {
-        val file = File(path)
-        if (file.exists() && file.isFile && file.canRead()) {
-            return try {
-                val bytes = file.readBytes()
-                val str = bytes.decodeToString()
-                if (str.length > maxBytes) str.substring(0, maxBytes) + "\n... [TRUNCATED] ..." else str
-            } catch (e: Exception) {
-                ""
-            }
-        }
-        if (mIsDeviceRooted) {
-            val escapedPath = path.replace("'", "'\\''")
-            val output = executeCommand(arrayOf("cat", escapedPath))
-            if (!output.startsWith("Error:") && !output.startsWith("cat:")) {
-                return if (output.length > maxBytes) output.substring(0, maxBytes) + "\n... [TRUNCATED] ..." else output
-            }
-        }
-        return ""
-    }
-
     fun fileExists(file: File): Boolean {
         if (file.exists()) return true
         if (!isRootActive()) return false
         if (mIsDeviceRooted) {
-            val escaped = file.absolutePath.replace("'", "'\\''")
-            val output = executeCommand(arrayOf("sh", "-c", "test -e '$escaped' && echo 1 || echo 0")).trim()
-            return output == "1"
+            val output = executeCommand(arrayOf("ls", "-d", file.absolutePath)).trim()
+            return output.isNotBlank() && !output.startsWith("Error:") && !output.startsWith("ls:")
         } else {
             val path = file.absolutePath
             val simPaths = listOf(
@@ -476,9 +417,8 @@ object RootAdvancedFeatures {
         if (file.exists()) return file.isDirectory
         if (!isRootActive()) return false
         if (mIsDeviceRooted) {
-            val escaped = file.absolutePath.replace("'", "'\\''")
-            val output = executeCommand(arrayOf("sh", "-c", "test -d '$escaped' && echo 1 || echo 0")).trim()
-            return output == "1"
+            val testDir = executeCommand(arrayOf("ls", "-ld", file.absolutePath)).trim()
+            return testDir.startsWith("d")
         } else {
             val path = file.absolutePath
             val simDirs = listOf(
@@ -519,10 +459,6 @@ object RootAdvancedFeatures {
     fun fileListFiles(file: File): List<File> {
         if (isRootActive()) {
             if (mIsDeviceRooted) {
-                val rootItems = listDirectoryDetails(file.absolutePath)
-                if (rootItems != null) {
-                    return rootItems.map { File(file, it.name) }
-                }
                 val output = executeCommand(arrayOf("ls", "-1p", file.absolutePath))
                 if (output.isNotBlank() && !output.startsWith("Error:") && !output.startsWith("ls:")) {
                     val lines = output.lines().filter { it.isNotBlank() }
@@ -583,7 +519,7 @@ object RootAdvancedFeatures {
         }
         if (isRootActive()) {
             if (mIsDeviceRooted) {
-                val proc = Runtime.getRuntime().exec(getSuCmd())
+                val proc = Runtime.getRuntime().exec("su")
                 val os = proc.outputStream
                 val escapedPath = file.absolutePath.replace("'", "'\\''")
                 os.write("cat '$escapedPath'\n".toByteArray(Charsets.UTF_8))
