@@ -2,26 +2,30 @@
 
 ## Active Goal & Branch
 - **Branch:** `main`
-- **Goal:** Robust HTTP & WebDAV Android file server with SD card auto-detection, granular sharing, and Windows 1-click mounting tools.
+- **Release:** `v1.3.0` (versionCode: 8, versionName: "1.3.0")
+- **Repo:** `https://github.com/chyunkeru/HTTP-File-Server-WebDAV-`
 
 ## Verified Work
-- **Configured Shared Drives UI Alignment:**
-  - Added disabled/greyed-out trash bin icon for Internal Storage (`folder.isDefault`).
-  - Vertically aligned all checkboxes and trash bin buttons uniformly across all configured shares.
-- **Web UI Windows Hub Redesign:**
-  - Standardized all 3 tool columns to equal size, height (`180px`), and shape via `repeat(3, minmax(0, 1fr))`.
-  - Removed "Path 1" and "Path 2" prefixes.
-  - Set all card titles to strictly single-line (`white-space: nowrap; overflow: hidden; text-overflow: ellipsis;`).
-  - Updated badges to clear single-line tags: `Zero Install`, `Local Cache`, `Reset Mounts` with `white-space: nowrap`.
+- **Version Bump & Release:**
+  - Bumped `versionCode = 8` and `versionName = "1.3.0"` in `app/build.gradle.kts`.
+  - Created and committed `CHANGELOG.md` detailing v1.3.0 features and fixes.
+  - Overhauled `README.md` with features, connection instructions, disclaimers, and screenshots.
+  - Successfully pushed `main` branch and `v1.3.0` tag to GitHub.
+- **Core Features Delivered:**
+  - Automatic external SD card detection (`/storage/XXXX-XXXX`) and seeding alongside Internal Storage.
+  - Granular folder share checkboxes (both enabled by default).
+  - Aligned checkboxes & added disabled/greyed-out trash bin for Internal Storage.
+  - Redesigned Web UI Windows Hub with 3 equal single-line columns: Native WebDAV, Virtual Drive (WinFsp), and Universal Disconnect.
+  - Clear single-line badges: `Zero Install`, `Local Cache`, `Reset Mounts`.
+  - Removed non-functional SMB proxy artifacts.
+  - Prominent usage and protocol disclaimers added across app, web, scripts, and documentation.
 - **Samsung Dual Messenger Compliance:**
-  - Deployed cleanly via `adb -s R52W8040Z0Z install -r -d --user 0`.
-- **Documentation & Legal:**
-  - Updated `README.md`, `AGENTS.md`, and in-app disclaimers.
+  - Build & deployment verified targeting `--user 0`.
 
 ## Blockers
 - None.
 
 ## Next 3 Steps
-1. User tests and verifies aligned checkboxes & greyed-out bin in the tablet's Configured Drives tab.
-2. User refreshes `http://10.0.0.142:8080/` in browser on PC to view the 3 equal single-line columns.
-3. Test 1-click scripts as desired.
+1. Create a GitHub Release from tag `v1.3.0` on the web interface with prebuilt APK attached (if desired).
+2. Verify GitHub repository renders `README.md` and `CHANGELOG.md` properly.
+3. Enjoy seamless local Android NAS file sharing!
